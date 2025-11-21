@@ -4,7 +4,7 @@ import {
   createSkillApi, 
   deleteSkillApi, 
   deleteSkillCategoryApi 
-} from '../../api/api'; // Убедимся, что путь к api.js верный (../.. G)
+} from '../../api/api'; 
 
 const SkillsManagement = ({ allSkills, onUpdate }) => {
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -70,8 +70,6 @@ const SkillsManagement = ({ allSkills, onUpdate }) => {
           <div className="page-title">Управление навыками</div>
         </div>
       */}
-      {/* ^^^ БЛОК УДАЛЕН ^^^ */}
-      
       {error && (
           <div className="login-error" style={{ display: 'block', maxWidth: '800px', margin: '0 auto 20px auto', textAlign: 'center' }}>
             {error}
