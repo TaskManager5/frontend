@@ -25,7 +25,7 @@ const App = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 1. Инициализация: Проверяем токены при загрузке
+  // Инициализация: Проверяем токены при загрузке
   useEffect(() => {
     const token = Cookies.get('accessToken');
     if (token) {
@@ -48,20 +48,20 @@ const App = () => {
     setLoading(false);
   }, []);
 
-  // 2. Обработчик успешного входа
+  // Обработчик успешного входа
   const handleLoginSuccess = (userData) => {
     // В userData (из loginApi) есть ID, Role и JTI
     setUser(userData);
   };
 
-  // 3. Выход
+  // Выход
   const handleLogout = () => {
     logoutApi(user?.jti); // Вызываем API
     setUser(null); // Обновляем состояние
   };
 
   if (loading) {
-    return <div>Загрузка...</div>; // TODO: Стилизовать
+    return <div>Загрузка...</div>;
   }
 
   // Если пользователь не авторизован, показываем страницу входа
