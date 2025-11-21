@@ -109,7 +109,6 @@ export const deleteEmployeeApi = (id) => apiFetch(`/users/${id}`, { method: 'DEL
 
 // API Навыков
 export const getSkillsApi = () => apiFetch('/skills');
-// *** НОВЫЕ API ДЛЯ УПРАВЛЕНИЯ НАВЫКАМИ ***
 export const createSkillCategoryApi = (name) => apiFetch('/skills/categories', {
   method: 'POST',
   body: JSON.stringify({ name })
