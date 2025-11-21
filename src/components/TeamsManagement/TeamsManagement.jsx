@@ -8,14 +8,13 @@ import {
   deleteTeamApi,
   deleteTeamExperimental
 } from '../../api/api';
-// import { getEmployeesApi } from '../../api/api'; // <-- УДАЛЯЕМ, получаем из props
 import CreateTeamModal from './CreateTeamModal';
 import TeamMembersModal from './TeamMembersModal';
 
-// ИСПРАВЛЕНИЕ: Получаем tasks и employees из AppLayout
+// Получаем tasks и employees из AppLayout
 const TeamsManagement = ({ currentUser, tasks, employees }) => {
   const [teams, setTeams] = useState([]);
-  // const [employees, setEmployees] = useState([]); // <-- УДАЛЕНО, получаем из props
+  // const [employees, setEmployees] = useState([]); 
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [teamMembers, setTeamMembers] = useState([]);
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
@@ -23,12 +22,12 @@ const TeamsManagement = ({ currentUser, tasks, employees }) => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // loadEmployees(); // <-- УДАЛЕНО
+    // loadEmployees(); 
     // Запускаем loadTeams, когда tasks или employees (из props) изменятся
     if (tasks && employees) {
       loadTeams();
     }
-  }, [tasks, employees]); // <-- Добавляем зависимости
+  }, [tasks, employees]); // Добавляем зависимости
 
   const loadTeams = async () => {
   try {
@@ -51,7 +50,7 @@ const TeamsManagement = ({ currentUser, tasks, employees }) => {
               return employee ? employee.name : 'Неизвестный';
           });
 
-          // ИСПРАВЛЕНИЕ: Считаем активные задачи из props
+          // Считаем активные задачи из props
           const activeTaskCount = tasks.filter(
             task => task.team_id === team.id && !task.completed
           ).length;
@@ -75,7 +74,7 @@ const TeamsManagement = ({ currentUser, tasks, employees }) => {
             memberCount: members.length,
             managers: managerNames,
             formattedDate: formattedDate,
-            activeTaskCount: activeTaskCount // <-- Добавляем счетчик задач
+            activeTaskCount: activeTaskCount // Добавляем счетчик задач
           };
         } catch (err) {
           console.error(`Ошибка загрузки участников для команды ${team.id}:`, err);
@@ -84,7 +83,7 @@ const TeamsManagement = ({ currentUser, tasks, employees }) => {
             memberCount: 0, 
             managers: [],
             formattedDate: 'Недавно',
-            activeTaskCount: 0 // <-- Добавляем счетчик задач
+            activeTaskCount: 0 // Добавляем счетчик задач
           };
         }
       })
@@ -98,25 +97,10 @@ const TeamsManagement = ({ currentUser, tasks, employees }) => {
   }
 };
 
-  /* // УДАЛЕНО: Эта функция больше не нужна, т.к. employees приходят из props
-  const loadEmployees = async () => {
-    try {
-      const data = await getEmployeesApi();
-      console.log('Загруженные сотрудники:', data);
-      setEmployees(data);
-    } catch (err) {
-      console.error('Ошибка загрузки сотрудников:', err);
-    }
-  };
-  */
-
   const loadTeamMembers = async (teamId) => {
     try {
       const data = await getTeamMembersApi(teamId);
       console.log('СТРУКТУРА УЧАСТНИКОВ команды', teamId, ':', data);
-      
-      // ... (остальной код)
-      
       setTeamMembers(data);
     } catch (err) {
       console.error('Ошибка загрузки участников:', err);
@@ -179,7 +163,7 @@ const TeamsManagement = ({ currentUser, tasks, employees }) => {
     if (window.confirm(message)) {
       try {
         setLoading(true);
-        console.log(`🗑️ Удаляем команду "${teamName}"...`);
+        console.log(`Удаляем команду "${teamName}"...`);
         
         await deleteTeamApi(teamId);
         
@@ -214,7 +198,7 @@ const TeamsManagement = ({ currentUser, tasks, employees }) => {
         <div className="page-title">Управление командами</div>
         {currentUser.role === 'admin' && (
           <button 
-            // ИСПРАВЛЕНИЕ: Используем классы .action-button .btn-primary для починки
+            // Используем классы .action-button .btn-primary для починки
             className="action-button btn-primary"
             onClick={() => setCreateModalOpen(true)}
           >
@@ -273,7 +257,7 @@ const TeamsManagement = ({ currentUser, tasks, employees }) => {
                     </span>
                   </div>
 
-                  {/* ИСПРАВЛЕНИЕ: Добавляем счетчик задач */}
+                  {/* Добавляем счетчик задач */}
                   <div className="team-tasks-count">
                     <i className="fas fa-tasks"></i> 
                     Активных задач: {team.activeTaskCount || 0}
@@ -324,7 +308,7 @@ const TeamsManagement = ({ currentUser, tasks, employees }) => {
         <TeamMembersModal
           team={selectedTeam}
           members={teamMembers}
-          employees={employees} // <-- Передаем employees из props
+          employees={employees} // Передаем employees из props
           onClose={() => setMembersModalOpen(false)}
           onAddMember={handleAddMember}
           onRemoveMember={handleRemoveMember}
