@@ -8,7 +8,7 @@ import ReactFlow, {
   Handle, 
   Position,
   ReactFlowProvider,
-  useReactFlow // <-- Хук для работы с проекцией координат
+  useReactFlow // Хук для работы с проекцией координат
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -20,7 +20,7 @@ import {
   removeTeamMemberApi
 } from '../../api/api';
 
-// --- Кастомный узел сотрудника ---
+// Кастомный узел сотрудника 
 const EmployeeNode = ({ data }) => {
   return (
     <div className="employee-node">
@@ -59,7 +59,7 @@ const EmployeeNode = ({ data }) => {
 
 const nodeTypes = { employee: EmployeeNode };
 
-// --- Основной компонент контента (внутри Provider) ---
+//Основной компонент контента (внутри Provider)
 const TeamGraphContent = ({ currentUser }) => {
   const [teams, setTeams] = useState([]);
   const [selectedTeamId, setSelectedTeamId] = useState('');
@@ -72,7 +72,7 @@ const TeamGraphContent = ({ currentUser }) => {
   // Хук для конвертации координат
   const reactFlowInstance = useReactFlow();
 
-  // 1. Загрузка списков
+  // Загрузка списков
   useEffect(() => {
     const init = async () => {
       try {
@@ -89,7 +89,7 @@ const TeamGraphContent = ({ currentUser }) => {
     init();
   }, []);
 
-  // 2. Загрузка графа при смене команды
+  // Загрузка графа при смене команды
   useEffect(() => {
     if (!selectedTeamId) {
         setNodes([]);
@@ -99,27 +99,27 @@ const TeamGraphContent = ({ currentUser }) => {
     loadGraphData(selectedTeamId);
   }, [selectedTeamId]);
 
-  // Функция построения графа (УМНАЯ: сохраняет позиции)
+  // Функция построения графа 
   const loadGraphData = async (teamId) => {
     try {
       const members = await getTeamMembersApi(teamId);
       const teamInfo = teams.find(t => t.id.toString() === teamId.toString());
       
       setNodes((currentNodes) => {
-          // 1. Центральный узел
+          // 1Центральный узел
           const centerNode = {
             id: 'team-center',
             type: 'input',
             data: { label: teamInfo ? teamInfo.name : 'Команда' },
             position: { x: 400, y: 300 },
-            className: 'center-node', // Используем класс из CSS
+            className: 'center-node', //  класс из CSS
           };
 
-          // 2. Узлы сотрудников
+          // Узлы сотрудников
           const memberNodes = members.map((member, index) => {
             const nodeId = `emp-${member.id}`;
             
-            // ПРОВЕРКА: Если узел уже есть, оставляем его позицию!
+            // Если узел уже есть, оставляем его позицию!
             const existingNode = currentNodes.find(n => n.id === nodeId);
             
             let position;
@@ -154,8 +154,7 @@ const TeamGraphContent = ({ currentUser }) => {
           return [centerNode, ...memberNodes];
       });
 
-      // 3. Связи (только базовые, от центра)
-      // Важно: Мы не перезаписываем edges полностью, чтобы сохранить ручные связи между сотрудниками
+      // Связи (только базовые, от центра)
       setEdges((currentEdges) => {
            const teamEdges = members.map((member) => ({
             id: `e-team-${member.id}`,
@@ -231,21 +230,17 @@ const TeamGraphContent = ({ currentUser }) => {
           return;
       }
 
-      // 1. Вычисляем позицию, куда бросили (в координатах графа)
+      // Вычисляем позицию, куда бросили (в координатах графа)
       const position = reactFlowInstance.project({
-        x: event.clientX - 250, // Корректировка на ширину сайдбара и отступы (примерная)
+        x: event.clientX - 250, // Корректировка на ширину сайдбара и отступы 
         y: event.clientY - 100,
       });
 
       try {
-          // 2. Сначала добавляем в базу
+          // Сначала добавляем в базу
           await addTeamMemberApi(selectedTeamId, userId, 'member');
           
-          // 3. Обновляем граф, но НОВЫЙ узел ставим в позицию DROP, а не в круг
-          // Мы делаем это, вызывая loadGraphData, но предварительно можно было бы добавить узел вручную
-          // Но проще довериться loadGraphData, так как мы добавили логику сохранения позиций.
-          // ХИТРОСТЬ: Мы можем временно добавить узел в state, чтобы loadGraphData его "нашел" и сохранил позицию
-          
+          // Обновляем граф, но НОВЫЙ узел ставим в позицию DROP, а не в круг          
           const fullEmployee = allEmployees.find(e => e.id === userId);
           const newNode = {
               id: nodeId,
@@ -261,8 +256,8 @@ const TeamGraphContent = ({ currentUser }) => {
           
           setNodes((nds) => nds.concat(newNode));
           
-          // А теперь обновляем (чтобы создать связи и синхронизироваться)
-          // loadGraphData "увидит" наш newNode в currentNodes и сохранит его позицию
+          // теперь обновляем (чтобы создать связи и синхронизироваться)
+          // loadGraphData "увидит" newNode в currentNodes и сохранит его позицию
           setTimeout(() => loadGraphData(selectedTeamId), 100);
 
       } catch (err) {
@@ -318,8 +313,8 @@ const TeamGraphContent = ({ currentUser }) => {
                 edges={edges}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
-                onConnect={onConnect} // <-- Связывание
-                onEdgeClick={onEdgeClick} // <-- Удаление связей
+                onConnect={onConnect} // Связывание
+                onEdgeClick={onEdgeClick} // Удаление связей
                 nodeTypes={nodeTypes}
                 onDragOver={onDragOver}
                 onDrop={onDrop}
@@ -385,7 +380,7 @@ const TeamGraphContent = ({ currentUser }) => {
   );
 };
 
-// Обертка Provider обязательна для использования хука useReactFlow
+// Обертка Provider обязательна для использования хука useReactFlow!!!!!
 const TeamGraph = (props) => (
     <ReactFlowProvider>
         <TeamGraphContent {...props} />
