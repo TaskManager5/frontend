@@ -13,9 +13,8 @@ import {
     deleteEmployeeApi 
 } from '../../api/api';
 import TeamsManagement from '../TeamsManagement/TeamsManagement';
-// ИСПРАВЛЕНИЕ: Путь теперь ведет в новую папку
 import SkillsManagement from '../SkillsManagement/SkillsManagement'; 
-import TeamGraph from '../TeamGraph/TeamGraph'; // <-- 1. ИМПОРТ ГРАФА
+import TeamGraph from '../TeamGraph/TeamGraph'; 
 
 // Импорты для графиков
 import { Doughnut, Pie, Bar } from 'react-chartjs-2';
@@ -44,7 +43,7 @@ function calculateQuadrant(importance, deadline) {
     const timeDiff = taskDate.getTime() - today.getTime();
     const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
     
-    // ИЗМЕНЕНИЕ: Сделаем 2 дня для большей срочности
+
     const isUrgent = daysDiff <= 2;
     const isImportant = importance >= 7;
     
@@ -77,7 +76,7 @@ const AppLayout = ({ user, onLogout }) => {
     const [employees, setEmployees] = useState([]); // globalState.employees
     const [tasks, setTasks] = useState([]);         // globalState.tasks
     const [teams, setTeams] = useState([]); 
-    const [allSkills, setAllSkills] = useState([]); // <-- 2. СОСТОЯНИЕ ДЛЯ СЛОВАРЯ НАВЫКОВ
+    const [allSkills, setAllSkills] = useState([]);
     const [currentFilter, setCurrentFilter] = useState('all');
     const [currentView, setCurrentView] = useState('tasks');
     const [searchTerm, setSearchTerm] = useState('');
@@ -88,15 +87,15 @@ const AppLayout = ({ user, onLogout }) => {
     const [isEmployeesModalOpen, setEmployeesModalOpen] = useState(false);
     const [isAddEmployeeModalOpen, setAddEmployeeModalOpen] = useState(false);
     
-    // ИЗМЕНЕНИЕ: Состояние для модального окна профиля
+    // Состояние для модального окна профиля
     const [isProfileModalOpen, setProfileModalOpen] = useState(false);
     
-    // ИЗМЕНЕНИЕ: Состояние для фильтра матрицы
+    // Состояние для фильтра матрицы
     const [matrixView, setMatrixView] = useState('all'); // 'all', 1, 2, 3, 4
 
     // Загрузка данных 
     
-    // (Эта функция больше не используется в useEffect, но нужна для handleSaveEmployee)
+    // (не используется в useEffect, но нужна для handleSaveEmployee)
     const loadEmployees = async () => {
         try {
             const data = await getEmployeesApi();
@@ -108,7 +107,7 @@ const AppLayout = ({ user, onLogout }) => {
         }
     };
 
-    // 3. ИЗМЕНЯЕМ ФУНКЦИЮ ЗАГРУЗКИ (теперь 'loadData')
+    // Функция загрузки
     const loadData = async () => {
         try {
             // Загружаем всё параллельно
@@ -116,17 +115,17 @@ const AppLayout = ({ user, onLogout }) => {
                 getTasksApi(),
                 getEmployeesApi(),
                 getTeamsApi(),
-                getSkillsApi() // <-- 3. ЗАГРУЖАЕМ СЛОВАРЬ НАВЫКОВ
+                getSkillsApi() 
             ]);
 
             setEmployees(employeeData);
-            setTeams(teamData); // Сохраняем команды
-            setAllSkills(skillsData); // <-- 3. СОХРАНЯЕМ СЛОВАРЬ НАВЫКОВ
+            setTeams(teamData); 
+            setAllSkills(skillsData); 
 
             // Сопоставляем имя сотрудника с задачей
             const tasksWithNames = taskData.map(task => {
                 const assignee = employeeData.find(emp => emp.id === task.assignee_id);
-                // ИСПРАВЛЕНИЕ: Ищем ИМЯ КОМАНДЫ
+                // Ищем ИМЯ КОМАНДЫ
                 const team = teamData.find(t => t.id === task.team_id);
                 
                 return {
@@ -134,7 +133,7 @@ const AppLayout = ({ user, onLogout }) => {
                     deadline: task.deadline.split('T')[0],
                     completed: task.status === 'done' || task.status === 'canceled',
                     assignee_name: assignee ? assignee.name : (task.assignee_id ? 'Неизвестный' : null),
-                    team_name: team ? team.name : null // <-- ДОБАВЛЯЕМ ИМЯ КОМАНДЫ
+                    team_name: team ? team.name : null
                 };
             });
             setTasks(tasksWithNames);
@@ -172,7 +171,6 @@ const AppLayout = ({ user, onLogout }) => {
     const filteredTasks = useMemo(() => {
         let filtered = tasks;
         const today = new Date();
-        // Убираем часы/минуты/секунды для корректного сравнения "сегодня"
         today.setHours(0, 0, 0, 0); 
 
         switch (currentFilter) {
@@ -185,7 +183,6 @@ const AppLayout = ({ user, onLogout }) => {
             case 'completed':
                 filtered = filtered.filter(task => task.completed);
                 break;
-            // ИСПРАВЛЕНИЕ: Новый фильтр "Просроченные"
             case 'overdue':
                 filtered = filtered.filter(task => {
                     const taskDate = new Date(task.deadline);
@@ -195,7 +192,6 @@ const AppLayout = ({ user, onLogout }) => {
                 break;
             case 'all':
             default:
-                // Фильтр "Все задачи" должен показывать только АКТИВНЫЕ задачи
                 filtered = filtered.filter(task => !task.completed);
                 break;
         }
@@ -262,7 +258,6 @@ const AppLayout = ({ user, onLogout }) => {
     // Обработчики Сотрудников
     const handleSaveEmployee = async (employeeData) => {
         try {
-            // employeeData теперь содержит skill_ids
             await createEmployeeApi(employeeData);
             setAddEmployeeModalOpen(false);
             await loadData(); // Перезагружаем ВСЕ, чтобы сотрудники обновились
@@ -272,7 +267,7 @@ const AppLayout = ({ user, onLogout }) => {
         }
     };
     
-    // НОВЫЙ ОБРАБОТЧИК: Удаление сотрудника
+    // Удаление сотрудника
     const handleDeleteEmployee = async (employeeId, employeeName) => {
         if (employeeId === userInfo.id) {
             alert("Вы не можете удалить сами себя.");
@@ -296,10 +291,10 @@ const AppLayout = ({ user, onLogout }) => {
     // Права доступа (RBAC)
     const canAddTask = userInfo.role === 'admin' || userInfo.role === 'manager';
     const canSeeAnalytics = userInfo.role === 'admin' || userInfo.role === 'manager';
-    // НОВОЕ: Права на администрирование
+    // Права на администрирование
     const canAdmin = userInfo.role === 'admin';
 
-    // ИЗМЕНЕНИЕ: Получаем полные данные пользователя для модального окна
+    // Получаем полные данные пользователя для модального окна
     const fullUserDetails = useMemo(() => {
         return employees.find(emp => emp.id.toString() === userInfo.id.toString()) || {};
     }, [employees, userInfo]);
@@ -315,7 +310,7 @@ const AppLayout = ({ user, onLogout }) => {
             <aside className="sidebar">
                 <div className="logo"><i className="fas fa-tasks"></i><span>TaskManager</span></div>
                 
-                {/* ИЗМЕНЕНИЕ: Добавлен onClick для открытия профиля */}
+                {/*Добавлен onClick для открытия профиля */}
                 <div className="user-info" onClick={() => setProfileModalOpen(true)} title="Посмотреть профиль">
                     <div className="user-avatar" id="userAvatar">{userInfo.avatar || '..'}</div>
                     <div className="user-details">
@@ -341,14 +336,14 @@ const AppLayout = ({ user, onLogout }) => {
                     <li className={`menu-item ${currentView === 'teams' ? 'active' : ''}`} onClick={() => setCurrentView('teams')}>
                         <i className="fas fa-users"></i><span>Команды</span>
                     </li>
-                    {/* НОВОЕ: Ссылка на Граф */}
+                    {/*Ссылка на Граф */}
                     <li className={`menu-item ${currentView === 'graph' ? 'active' : ''}`} onClick={() => setCurrentView('graph')}>
                         <i className="fas fa-project-diagram"></i><span>Схема проекта</span>
                     </li>
                     <li className="menu-item" onClick={() => setEmployeesModalOpen(true)}>
                         <i className="fas fa-users"></i><span>Сотрудники</span>
                     </li>
-                    {/* НОВОЕ: Ссылка на Управление навыками */}
+                    {/*Ссылка на Управление навыками */}
                     {canAdmin && (
                         <li className={`menu-item ${currentView === 'skills' ? 'active' : ''}`} onClick={() => setCurrentView('skills')}>
                             <i className="fas fa-book"></i><span>Словарь навыков</span>
@@ -382,7 +377,7 @@ const AppLayout = ({ user, onLogout }) => {
                         </div>
                     </div>
                     
-                    {/* ИЗМЕНЕНИЕ: Фильтры для квадрантов (появляются только на 'tasks') */}
+                    {/*Фильтры для квадрантов (появляются только на 'tasks') */}
                     {currentView === 'tasks' && (
                         <div className="matrix-filter-bar">
                             <button 
@@ -422,7 +417,7 @@ const AppLayout = ({ user, onLogout }) => {
                                 onToggleTask={handleToggleTask}
                                 onDeleteTask={handleDeleteTask}
                                 currentUser={userInfo}
-                                matrixView={matrixView} // ИЗМЕНЕНИЕ: Передаем режим просмотра
+                                matrixView={matrixView} // Передаем режим просмотра
                             />
                         )}
                         {currentView === 'analytics' && (
@@ -432,21 +427,21 @@ const AppLayout = ({ user, onLogout }) => {
                             />
                         )}
                         {currentView === 'teams' && (
-                            // ИСПРАВЛЕНИЕ: Передаем задачи и сотрудников
+                            // Передаем задачи и сотрудников
                             <TeamsManagement 
                                 currentUser={userInfo} 
                                 tasks={tasks}
                                 employees={employees}
                             />
                         )}
-                        {/* НОВОЕ: Рендер Управления Навыками */}
+                        {/*Рендер Управления Навыками */}
                         {currentView === 'skills' && (
                             <SkillsManagement 
                                 allSkills={allSkills}
                                 onUpdate={loadData} // Передаем loadData для обновления
                             />
                         )}
-                        {/* НОВОЕ: Рендер Графа */}
+                        {/* Рендер Графа */}
                         {currentView === 'graph' && (
                             <TeamGraph 
                                 currentUser={userInfo}
@@ -465,7 +460,6 @@ const AppLayout = ({ user, onLogout }) => {
                             <button className={`action-button btn-secondary ${currentFilter === 'urgent' ? 'filter-active' : ''}`} onClick={() => setCurrentFilter('urgent')}>
                                 <i className="fas fa-fire"></i> Срочные задачи
                             </button>
-                            {/* ИСПРАВЛЕНИЕ: Новая кнопка "Просроченные" */}
                             <button className={`action-button btn-secondary ${currentFilter === 'overdue' ? 'filter-active' : ''}`} onClick={() => setCurrentFilter('overdue')}>
                                 <i className="fas fa-calendar-times"></i> Просроченные
                             </button>
@@ -491,7 +485,7 @@ const AppLayout = ({ user, onLogout }) => {
                     employees={employees}
                     currentUser={userInfo}
                     teams={teams}
-                    allSkills={allSkills} // <-- 4. ПЕРЕДАЕМ СЛОВАРЬ НАВЫКОВ
+                    allSkills={allSkills} 
                 />
             )}
             {isEmployeesModalOpen && (
@@ -512,11 +506,11 @@ const AppLayout = ({ user, onLogout }) => {
                 <AddEmployeeModal 
                     onClose={() => setAddEmployeeModalOpen(false)}
                     onSave={handleSaveEmployee}
-                    allSkills={allSkills} // <-- 4. ПЕРЕДАЕМ СЛОВАРЬ НАВЫКОВ
+                    allSkills={allSkills} 
                 />
             )}
             
-            {/* ИЗМЕНЕНИЕ: Модальное окно профиля */}
+            {/*Модальное окно профиля */}
             {isProfileModalOpen && (
                 <UserProfileModal
                     onClose={() => setProfileModalOpen(false)}
@@ -530,14 +524,13 @@ const AppLayout = ({ user, onLogout }) => {
 
 // Компоненты-помощники 
 
-// ИЗМЕНЕНИЕ: TaskMatrix теперь принимает matrixView
+// TaskMatrix теперь принимает matrixView
 const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, currentUser, matrixView }) => {
     
-    // ИСПРАВЛЕНИЕ: Упрощаем canDeleteTask (проверяем, что created_by существует)
+    // Упрощаем canDeleteTask (проверяем, что created_by существует)
     const canDeleteTask = (task) => {
         if (!currentUser || !task) return false;
         const userId = currentUser.id.toString();
-        // Бэкенд [tasks.js] требует `created_by` для user/manager
         const createdBy = task.created_by ? task.created_by.toString() : null; 
         const assignedTo = task.assignee_id ? task.assignee_id.toString() : null;
 
@@ -580,11 +573,11 @@ const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, currentUser, matrix
                             <div className="task-meta">
                                 <span><i className="far fa-calendar"></i> {formatDate(task.deadline)}</span>
                                 <span><i className="fas fa-bolt"></i> Важность: {task.importance}/10</span>
-                                {/* ИСПРАВЛЕНИЕ: Показываем сотрудника */}
+                                {/* Показываем сотрудника */}
                                 {task.assignee_name && (
                                     <span><i className="fas fa-user"></i> {task.assignee_name}</span>
                                 )}
-                                {/* ИСПРАВЛЕНИЕ: Показываем команду */}
+                                {/* Показываем команду */}
                                 {task.team_name && (
                                     <span><i className="fas fa-users"></i> {task.team_name}</span>
                                 )}
@@ -613,7 +606,7 @@ const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, currentUser, matrix
         </div>
     );
 
-    // ИЗМЕНЕНИЕ: Логика рендеринга на основе matrixView
+    // Логика рендеринга на основе matrixView
     if (matrixView !== 'all') {
         // Показываем только один выбранный квадрант
         return (
@@ -631,15 +624,15 @@ const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, currentUser, matrix
     );
 };
 
-// 5. ИЗМЕНЯЕМ AddTaskModal
+// AddTaskModal
 const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkills }) => {
     
-    // --- ИСПРАВЛЕНИЕ: Логика связанных списков (Команда) ---
+    // Логика связанных списков (Команда) 
     const [selectedTeamId, setSelectedTeamId] = useState('');
     const [teamSpecificMembers, setTeamSpecificMembers] = useState(null); // null = не выбрано, [] = выбрано, но пусто, [...] = участники
     const [loadingMembers, setLoadingMembers] = useState(false);
 
-    // --- ИСПРАВЛЕНИЕ: Логика фильтра навыков (Категория/Навык) ---
+    // Логика фильтра навыков (Категория/Навык)
     const [selectedCategoryId, setSelectedCategoryId] = useState('');
     const [selectedSkillId, setSelectedSkillId] = useState('');
 
@@ -680,7 +673,7 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
     }, [allSkills, selectedCategoryId]);
 
 
-    // ИСПРАВЛЕНИЕ: `filteredEmployees` теперь зависит от M2M и ДВУХ фильтров
+    // `filteredEmployees` теперь зависит от M2M и ДВУХ фильтров
     const filteredEmployees = useMemo(() => {
         let availableEmployees = employees; // Начинаем со всех
 
@@ -732,7 +725,7 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
     };
 
     return (
-        // ИСПРАВЛЕНИЕ: Меняем onClick на onMouseDown
+        // Меняем onClick на onMouseDown
         <div className="modal" style={{ display: 'flex' }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
             <div className="modal-content">
                 <div className="modal-header">
@@ -758,7 +751,7 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
                                 <select 
                                     id="taskTeam" 
                                     name="taskTeam"
-                                    // ИСПРАВЛЕНИЕ: Добавляем value и onChange
+                                    // Добавляем value и onChange
                                     value={selectedTeamId}
                                     onChange={handleTeamChange}
                                     // Менеджер ОБЯЗАН выбрать команду
@@ -787,7 +780,7 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
                             <input type="number" id="taskComplexity" name="taskComplexity" min="1" max="10" defaultValue="5" />
                         </div>
                         
-                        {/* ИСПРАВЛЕНИЕ: Новый M2M Фильтр по навыкам (Категория + Навык) */}
+                        {/* Новый M2M Фильтр по навыкам (Категория + Навык) */}
                         <label>Фильтр по навыкам (для Исполнителя)</label>
                         <div className="form-row" style={{marginBottom: '20px'}}>
                             <div className="form-group">
@@ -836,7 +829,7 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
                                     .filter(emp => emp.id.toString() !== currentUser.id.toString()) // Убираем "себя" из этого списка
                                     .map(emp => (
                                         <option key={emp.id} value={emp.id}>
-                                            {/* ИСПРАВЛЕНИЕ: Отображаем skill_name */}
+                                            {/* Отображаем skill_name */}
                                             {emp.name} - ({(emp.skills || []).map(s => s.skill_name).join(', ')})
                                         </option>
                                 ))}
@@ -856,10 +849,10 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
     );
 };
 
-// ИСПРАВЛЕНИЕ: EmployeesModal
+// EmployeesModal
 const EmployeesModal = ({ onClose, onShowAdd, employees, canAdd, currentUser, onDelete, canDelete }) => {
     return (
-        // ИСПРАВЛЕНИЕ: Меняем onClick на onMouseDown
+        // Меняем onClick на onMouseDown
         <div className="modal" style={{ display: 'flex' }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
             <div className="modal-content" style={{ maxWidth: '800px' }}>
                 <div className="modal-header">
@@ -882,7 +875,7 @@ const EmployeesModal = ({ onClose, onShowAdd, employees, canAdd, currentUser, on
                                         <div className="employee-name">{employee.name}</div>
                                         <div className="employee-position">{employee.position}</div>
                                         <div className="employee-skills">
-                                            {/* ИСПРАВЛЕНИЕ: Отображаем M2M навыки */}
+                                            {/* Отображаем M2M навыки */}
                                             {(employee.skills || []).map(skill => (
                                                 <span key={skill.skill_id} className="skill-tag" title={skill.category_name}>
                                                     {skill.skill_name}
@@ -890,7 +883,7 @@ const EmployeesModal = ({ onClose, onShowAdd, employees, canAdd, currentUser, on
                                             ))}
                                         </div>
                                     </div>
-                                    {/* НОВОЕ: Кнопка удаления */}
+                                    {/* Кнопка удаления */}
                                     {canDelete && employee.id !== currentUser.id && employee.login !== 'admin' && (
                                         <button 
                                             className="btn btn-danger btn-sm"
@@ -911,13 +904,13 @@ const EmployeesModal = ({ onClose, onShowAdd, employees, canAdd, currentUser, on
     );
 };
 
-// 6. ИЗМЕНЯЕМ AddEmployeeModal
+// AddEmployeeModal
 const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
     const [error, setError] = useState(null);
     // Состояние для хранения ВЫБРАННЫХ ID навыков
     const [selectedSkills, setSelectedSkills] = useState(new Set());
 
-    // ИСПРАВЛЕНИЕ: UI для выбора навыков
+    // UI для выбора навыков
     const [currentCategoryId, setCurrentCategoryId] = useState('');
     const [currentSkillId, setCurrentSkillId] = useState('');
 
@@ -928,7 +921,6 @@ const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
     }, [allSkills, currentCategoryId]);
     
     // Навыки, которые уже выбраны (для отображения в списке)
-    // ИСПРАВЛЕНИЕ БАГА: `selectedSkillsDetails` не мог найти `category_name`
     const selectedSkillsDetails = useMemo(() => {
         const details = [];
         const allSkillsFlat = allSkills.flatMap(c => 
@@ -959,7 +951,7 @@ const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
             return newSelected;
         });
     };
-    // --- Конец UI ---
+    // Конец UI
 
 
     const handleSubmit = async (e) => {
@@ -979,7 +971,7 @@ const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
             password: password,
             position: formData.get('employeePosition'),
             role: formData.get('employeeRole'),
-            // ИСПРАВЛЕНИЕ: Отправляем массив ID
+            //Отправляем массив ID
             skill_ids: Array.from(selectedSkills) 
         };
 
@@ -996,7 +988,7 @@ const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
     };
 
     return (
-        // ИСПРАВЛЕНИЕ: Меняем onClick на onMouseDown
+        // Меняем onClick на onMouseDown
         <div className="modal" style={{ display: 'flex' }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
             <div className="modal-content">
                 <div className="modal-header">
@@ -1016,7 +1008,7 @@ const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
                         </div>
                         <div className="form-group">
                             <label htmlFor="employeePassword">Пароль</label>
-                            {/* ИСПРАВЛЕНИЕ: Добавлен autoComplete */}
+                            {/* Добавлен autoComplete */}
                             <input 
                                 type="password" 
                                 id="employeePassword" 
@@ -1039,7 +1031,7 @@ const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
                             </select>
                         </div>
                         
-                        {/* ИСПРАВЛЕНИЕ: UI выбора навыков */}
+                        {/* UI выбора навыков */}
                         <div className="form-group">
                             <label>Навыки</label>
                             <div className="form-row">
@@ -1086,7 +1078,7 @@ const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
                                 <div className="selected-skills-list">
                                     {selectedSkillsDetails.map(skill => (
                                         <div key={skill.skill_id} className="selected-skill-item">
-                                            {/* ИСПРАВЛЕНИЕ: Отображаем category_name из объекта */}
+                                            {/* Отображаем category_name из объекта */}
                                             <span>{skill.skill_name} <small>({skill.category_name})</small></span>
                                             <button 
                                                 type="button" 
@@ -1114,10 +1106,10 @@ const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
     );
 };
 
-// ИЗМЕНЕНИЕ: Компонент модального окна профиля
+// Компонент модального окна профиля
 const UserProfileModal = ({ onClose, user, details }) => {
     return (
-        // ИСПРАВЛЕНИЕ: Меняем onClick на onMouseDown
+        // Меняем onClick на onMouseDown
         <div className="modal" style={{ display: 'flex' }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
             <div className="modal-content" style={{ maxWidth: '450px' }}>
                 <div className="modal-header">
@@ -1145,7 +1137,7 @@ const UserProfileModal = ({ onClose, user, details }) => {
                         <div className="profile-detail-item">
                             <span className="label">Навыки</span>
                             <div className="value skills-list">
-                                {/* ИСПРАВЛЕНИЕ: Отображаем M2M навыки */}
+                                {/* Отображаем M2M навыки */}
                                 {(details.skills && details.skills.length > 0) ? (
                                     details.skills.map(skill => (
                                         <span key={skill.skill_id} className="skill-tag" title={skill.category_name}>
@@ -1165,10 +1157,10 @@ const UserProfileModal = ({ onClose, user, details }) => {
 };
 
 
-// ИЗМЕНЕНИЕ: Компонент Аналитики (с графиками)
+// Компонент Аналитики (с графиками)
 const AnalyticsDashboard = ({ tasks, employees }) => {
     
-    // ИЗМЕНЕНИЕ: Состояние для выбора графика
+    // Состояние для выбора графика
     const [activeChart, setActiveChart] = useState('status'); // status, quadrants, complexity, load
     
     // 1. Статистика по статусам (Обновлено)
@@ -1203,7 +1195,7 @@ const AnalyticsDashboard = ({ tasks, employees }) => {
         return stats;
     }, [tasks]);
 
-    // 4. НОВАЯ: Загрузка по сотрудникам (активные задачи)
+    // 4. Загрузка по сотрудникам (активные задачи)
     const employeeLoadStats = useMemo(() => {
         const stats = {};
         const activeTasks = tasks.filter(task => !task.completed && task.assignee_name);
@@ -1264,13 +1256,13 @@ const AnalyticsDashboard = ({ tasks, employees }) => {
          maintainAspectRatio: false
     };
     
-    // ИЗМЕНЕНИЕ: Легенда перенесена вниз
+    // Легенда перенесена вниз
     const doughnutOptions = {
          plugins: { legend: { position: 'bottom' } },
          maintainAspectRatio: false
     };
     
-    // ИЗМЕНЕНИЕ: Легенда перенесена вниз
+    // Легенда перенесена вниз
     const pieOptions = {
          plugins: { legend: { position: 'bottom' } },
          maintainAspectRatio: false
@@ -1325,14 +1317,14 @@ const AnalyticsDashboard = ({ tasks, employees }) => {
             {/* Контейнер для одной диаграммы */}
             <div className="charts-list">
                 {activeChart === 'status' && (
-                    /* ИЗМЕНЕНИЕ: Увеличена высота для графика */
+                    /* Увеличена высота для графика */
                     <div className="chart-container" style={{ height: '450px' }}> 
                         <h3>Распределение задач по статусам</h3>
                         <Doughnut data={statusData} options={doughnutOptions} />
                     </div>
                 )}
                 {activeChart === 'quadrants' && (
-                     /* ИЗМЕНЕНИЕ: Увеличена высота для графика */
+                     /* Увеличена высота для графика */
                      <div className="chart-container" style={{ height: '450px' }}> 
                         <h3>Распределение по квадрантам (Активные задачи)</h3>
                         <Pie data={quadrantData} options={pieOptions} />
