@@ -5,7 +5,7 @@ const TeamMembersModal = ({ team, members, employees, onClose, onAddMember, onRe
   const [newMemberRole, setNewMemberRole] = useState('member');
 
   const availableEmployees = employees.filter(emp => 
-    !members.some(member => member.id === emp.id) // member.id вместо member.user_id
+    !members.some(member => member.id === emp.id) // member.id 
   );
 
   const canManageTeam = currentUser.role === 'admin' || 
@@ -19,7 +19,7 @@ const TeamMembersModal = ({ team, members, employees, onClose, onAddMember, onRe
     }
   };
 
-  // ИСПРАВЛЕННЫЕ функции для работы с данными
+  // функции для работы с данными
   const getUserId = (member) => {
     return member.id; // используем id
   };
@@ -70,7 +70,7 @@ const TeamMembersModal = ({ team, members, employees, onClose, onAddMember, onRe
   };
 
   return (
-    // ИСПРАВЛЕНИЕ: Меняем onClick на onMouseDown
+    // Меняем onClick на onMouseDown
     <div className="modal" style={{ display: 'flex' }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal-content" style={{ maxWidth: '600px', width: '90%' }}>
         <div className="modal-header">
