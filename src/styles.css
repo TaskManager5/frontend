@@ -69,7 +69,7 @@ html, body, #root {
     color: var(--dark);
 }
 
-/* ДОБАВЛЕНО: Автоматическая красная звездочка для обязательных полей */
+/* Автоматическая красная звездочка для обязательных полей */
 .form-group label:has(~ [required])::after {
     content: ' *';
     color: var(--danger);
@@ -118,7 +118,7 @@ html, body, #root {
 }
 
 .app-container {
-    display: flex; /* <-- ВАЖНО */
+    display: flex; 
     width: 100%;
     height: 100vh;
     overflow: hidden;
@@ -157,7 +157,6 @@ html, body, #root {
     align-items: center;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     margin-bottom: 15px;
-    /* ИЗМЕНЕНИЕ: Делаем профиль кликабельным */
     cursor: pointer;
     transition: background-color 0.3s;
 }
@@ -286,7 +285,7 @@ html, body, #root {
     font-size: 15px;
 }
 
-/* ИЗМЕНЕНИЕ: Стили для фильтра матрицы */
+/* Стили для фильтра матрицы */
 .matrix-filter-bar {
     display: flex;
     flex-wrap: wrap;
@@ -299,7 +298,7 @@ html, body, #root {
     flex-shrink: 0;
 }
 
-/* ИЗМЕНЕНИЕ: Общие стили для кнопок (используем в .btn-...) */
+/* Общие стили для кнопок  */
 .btn {
     display: inline-flex;
     align-items: center;
@@ -389,7 +388,7 @@ html, body, #root {
     min-height: 500px;
 }
 
-/* ИЗМЕНЕНИЕ: Стили для режима одного квадранта */
+/* Стили для режима одного квадранта */
 .eisenhower-grid.single-view {
     display: block;
 }
@@ -470,8 +469,7 @@ html, body, #root {
 }
 
 .quadrant-2 {
-    /* ИЗМЕНЕНИЕ: Цвет для Q2 */
-    border-color: #10b981; /* Зеленый (как у Выполнено) */
+    border-color: #10b981; 
 }
 .quadrant-2 .quadrant-count {
     background-color: #10b981;
@@ -574,24 +572,23 @@ html, body, #root {
     gap: 5px;
 }
 
-/* ИЗМЕНЕНИЕ: Стили кнопок задачи на "блёклые" */
 .complete-btn {
-    background-color: #dcfce7; /* Бледно-зеленый */
-    color: #15803d; /* Темно-зеленый текст */
+    background-color: #dcfce7; 
+    color: #15803d; 
 }
 
 .complete-btn:hover {
-    background-color: var(--success); /* Ярко-зеленый */
+    background-color: var(--success); 
     color: white;
 }
 
 .delete-btn {
-    background-color: #fee2e2; /* Бледно-красный */
-    color: #b91c1c; /* Темно-красный текст */
+    background-color: #fee2e2; 
+    color: #b91c1c; 
 }
 
 .delete-btn:hover {
-    background-color: var(--danger); /* Ярко-красный */
+    background-color: var(--danger); 
     color: white;
 }
 
@@ -668,7 +665,7 @@ html, body, #root {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transition: all 0.3s;
     
-    /* ИСПРАВЛЕНИЕ: Добавляем GAP, чтобы иконка не слипалась с текстом */
+    /* Добавляем GAP, чтобы иконка не слипалась с текстом */
     gap: 8px;
 }
 
@@ -677,7 +674,7 @@ html, body, #root {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
-/* ИСПРАВЛЕНИЕ: Явное правило для .action-button.btn-primary для исправления бага */
+/* Явное правило для .action-button.btn-primary для исправления бага */
 .action-button.btn-primary {
     background-color: var(--primary);
     color: white;
@@ -687,7 +684,6 @@ html, body, #root {
     background-color: var(--primary-dark);
 }
 
-/* ИСПРАВЛЕНИЕ: У .btn-secondary (который используется в .action-button) был border */
 .action-button.btn-secondary {
     background-color: white;
     color: var(--dark);
@@ -909,7 +905,6 @@ html, body, #root {
     }
 }
 
-/* Дополнительные улучшения */
 .task-detail-item {
     margin-bottom: 15px;
     padding-bottom: 15px;
@@ -938,9 +933,9 @@ html, body, #root {
     background-color: white;
 }
 
-/* --- ИЗМЕНЕНИЕ: Стили для аналитики --- */
+/* Стили для аналитики  */
 .analytics-container {
-    padding: 0; /* Убираем отступ, т.к. он в .content-area */
+    padding: 0; 
 }
 
 .stats-cards {
@@ -1021,7 +1016,7 @@ html, body, #root {
     padding: 25px;
     border-radius: 12px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-    /* Высота задается инлайн-стилем в JSX для адаптивности */
+    /* Высота задается онлайн-стилем в JSX для адаптивности */
 }
 
 .chart-container h3 {
@@ -1049,7 +1044,7 @@ html, body, #root {
         padding: 15px;
     }
 }
-/* --- Конец стилей аналитики --- */
+/*  Конец стилей аналитики  */
 
 
 /* Стили для фильтра навыков */
@@ -1176,7 +1171,6 @@ html, body, #root {
 
 
 /* Стили для управления командами */
-/* (Пустое правило .teams-management удалено) */
 .teams-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -1289,8 +1283,6 @@ html, body, #root {
     margin-bottom: 0;
 }
   
-/* .form-group label (уже определен выше) */
-  
 .form-select {
     width: 100%;
     padding: 10px 12px;
@@ -1373,8 +1365,6 @@ html, body, #root {
     align-items: center;
     gap: 10px;
 }
-  
-/* (Стили .btn-... уже определены) */
   
 .btn-outline {
     background-color: transparent;
@@ -1548,10 +1538,7 @@ html, body, #root {
     padding: 6px 10px;
     font-size: 12px;
 }
-  
-/* (btn-danger уже определен) */
  
-/* Добавьте в styles.css */
 .admin-badge {
     background-color: #dc3545;
     color: white;
@@ -1633,7 +1620,7 @@ html, body, #root {
     gap: 15px; /* Увеличиваем расстояние между элементами в строке */
 }
 
-/* --- ИЗМЕНЕНИЕ: Стили для модального окна профиля --- */
+/*Стили для модального окна профиля  */
 .profile-modal-body {
     padding: 25px;
     display: flex;
@@ -1706,9 +1693,9 @@ html, body, #root {
     gap: 5px;
     max-width: 200px; /* Ограничиваем ширину, чтобы теги переносились */
 }
-/* --- Конец стилей профиля --- */
+/* Конец стилей профиля */
 
-/* --- Стили для M2M Навыков в AddEmployeeModal --- */
+/* Стили для M2M Навыков в AddEmployeeModal */
 
 .skill-categories-container {
     border: 1px solid var(--border);
@@ -1764,7 +1751,7 @@ html, body, #root {
     cursor: pointer;
 }
 
-/* --- Стили для M2M Навыков в AddEmployeeModal (Новый UI) --- */
+/* Стили для M2M Навыков в AddEmployeeModal */
 .selected-skills-list {
     display: flex;
     flex-direction: column;
@@ -1816,7 +1803,7 @@ html, body, #root {
     background: #b91c1c;
 }
 
-/* --- Стили для Управления Навыками (SkillsManagement) --- */
+/* Стили для Управления Навыками (SkillsManagement) */
 
 .skills-forms-grid {
     display: grid;
@@ -1927,7 +1914,7 @@ html, body, #root {
     }
 }
 
-/* --- Стили для Графа (TeamGraph) --- */
+/* Стили для Графа (TeamGraph) */
 
 .team-graph-wrapper {
     display: flex;
@@ -2065,7 +2052,7 @@ html, body, #root {
     margin-top: 20px;
 }
 
-/* --- Кастомные узлы (Nodes) --- */
+/* Кастомные узлы (Nodes) */
 
 /* Узел Сотрудника */
 .employee-node {
