@@ -11,7 +11,6 @@ const CreateTeamModal = ({ onClose, onSave }) => {
   };
 
   return (
-    // ИСПРАВЛЕНИЕ: Меняем onClick на onMouseDown
     <div className="modal" style={{ display: 'flex' }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal-content">
         
