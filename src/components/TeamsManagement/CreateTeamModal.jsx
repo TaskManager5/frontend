@@ -2,12 +2,19 @@ import React, { useState } from 'react';
 
 const CreateTeamModal = ({ onClose, onSave }) => {
   const [teamName, setTeamName] = useState('');
+  // Состояние для ошибки валидации
+  const [error, setError] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (teamName.trim()) {
-      onSave(teamName.trim());
+    
+    // Проверка на пустое поле
+    if (!teamName.trim()) {
+      setError('Это обязательное поле. Необходимо заполнить');
+      return;
     }
+
+    onSave(teamName.trim());
   };
 
   return (
@@ -20,17 +27,26 @@ const CreateTeamModal = ({ onClose, onSave }) => {
         </div>
 
         <div className="modal-body">
-          <form onSubmit={handleSubmit}>
+          {/* Добавлен noValidate, чтобы отключить стандартные подсказки браузера */}
+          <form onSubmit={handleSubmit} noValidate>
             <div className="form-group">
               <label htmlFor="teamName">Название команды</label>
               <input
                 type="text"
                 id="teamName"
                 value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
+                onChange={(e) => {
+                    setTeamName(e.target.value);
+                    // Сбрасываем ошибку при вводе
+                    setError('');
+                }}
                 placeholder="Введите название команды"
+                // Добавляем класс ошибки для красной рамки
+                className={error ? 'input-error' : ''}
                 required
               />
+              {/* Вывод текста ошибки */}
+              {error && <span className="validation-error-text">{error}</span>}
             </div>
             
             <button type="submit" className="login-btn">Создать команду</button>
