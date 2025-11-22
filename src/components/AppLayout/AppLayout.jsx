@@ -10,7 +10,8 @@ import {
     getTeamsApi,
     getTeamMembersApi,
     getSkillsApi,
-    deleteEmployeeApi 
+    deleteEmployeeApi,
+    updateEmployeeApi
 } from '../../api/api';
 import TeamsManagement from '../TeamsManagement/TeamsManagement';
 import SkillsManagement from '../SkillsManagement/SkillsManagement'; 
@@ -497,9 +498,9 @@ const AppLayout = ({ user, onLogout }) => {
                     }}
                     employees={employees}
                     canAdd={canAddTask}
-                    currentUser={userInfo} // <-- Передаем currentUser
-                    onDelete={handleDeleteEmployee} // <-- Передаем обработчик
-                    canDelete={canAdmin} // <-- Передаем права
+                    currentUser={userInfo}
+                    onDelete={handleDeleteEmployee} 
+                    canDelete={canAdmin} 
                 />
             )}
             {isAddEmployeeModalOpen && (
@@ -516,6 +517,19 @@ const AppLayout = ({ user, onLogout }) => {
                     onClose={() => setProfileModalOpen(false)}
                     user={userInfo}
                     details={fullUserDetails}
+                    allSkills={allSkills} 
+                    onUpdateUser={async (updatedData) => { 
+                        // Обновляем пользователя на сервере
+                        try {
+                            await updateEmployeeApi(userInfo.id, updatedData);
+                            // Обновляем локальное состояние
+                            await loadData(); 
+                            // Закрываем модал
+                            setProfileModalOpen(false);
+                        } catch (e) {
+                            alert('Ошибка обновления: ' + (e.error || 'Server error'));
+                        }
+                    }}
                 />
             )}
         </div>
@@ -626,21 +640,21 @@ const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, currentUser, matrix
 
 // AddTaskModal
 const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkills }) => {
-    
-    // Логика связанных списков (Команда) 
+    // Логика связанных списков
     const [selectedTeamId, setSelectedTeamId] = useState('');
-    const [teamSpecificMembers, setTeamSpecificMembers] = useState(null); // null = не выбрано, [] = выбрано, но пусто, [...] = участники
+    const [teamSpecificMembers, setTeamSpecificMembers] = useState(null);
     const [loadingMembers, setLoadingMembers] = useState(false);
 
-    // Логика фильтра навыков (Категория/Навык)
+    // Фильтры навыков
     const [selectedCategoryId, setSelectedCategoryId] = useState('');
     const [selectedSkillId, setSelectedSkillId] = useState('');
 
+    // Состояние ошибок валидации
+    const [errors, setErrors] = useState({});
 
     const handleTeamChange = async (e) => {
       const teamId = e.target.value;
       setSelectedTeamId(teamId);
-      // Сбрасываем фильтр навыков и участников при смене команды
       setTeamSpecificMembers(null); 
       setSelectedCategoryId('');
       setSelectedSkillId('');
@@ -648,84 +662,82 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
       if (teamId) {
         setLoadingMembers(true);
         try {
-          // Вызываем API, импортированное в AppLayout
           const members = await getTeamMembersApi(teamId); 
           setTeamSpecificMembers(members);
         } catch (err) {
-          console.error("Failed to load team members", err);
-          setTeamSpecificMembers([]); // Ошибка = пустой список
+          setTeamSpecificMembers([]);
         } finally {
           setLoadingMembers(false);
         }
       }
     };
 
-    // Обработчик смены Категории навыка
-    const handleSkillCategoryChange = (e) => {
-        setSelectedCategoryId(e.target.value);
-        setSelectedSkillId(''); // Сбрасываем выбор навыка
-    };
-    
-    // Навыки, доступные во второй dropdown, на основе выбранной категории
     const availableSkills = useMemo(() => {
         if (!selectedCategoryId) return [];
         return allSkills.find(c => c.category_id === parseInt(selectedCategoryId, 10))?.skills || [];
     }, [allSkills, selectedCategoryId]);
 
-
-    // `filteredEmployees` теперь зависит от M2M и ДВУХ фильтров
     const filteredEmployees = useMemo(() => {
-        let availableEmployees = employees; // Начинаем со всех
-
-        // 1. Фильтруем по ВЫБРАННОЙ КОМАНДЕ (если она выбрана)
+        let availableEmployees = employees;
         if (teamSpecificMembers) {
             availableEmployees = employees.filter(emp => 
                 teamSpecificMembers.some(member => member.id === emp.id)
             );
         }
-        
-        // 2. Фильтруем по ВЫБРАННОМУ НАВЫКУ
-        if (!selectedSkillId) return availableEmployees; // Если фильтра навыков нет, возвращаем результат
-        
+        if (!selectedSkillId) return availableEmployees;
         const skillIdInt = parseInt(selectedSkillId, 10);
         return availableEmployees.filter(employee => {
             if (!employee.skills || employee.skills.length === 0) return false;
-            // Ищем совпадения в skill_id
             return employee.skills.some(empSkill => empSkill.skill_id === skillIdInt);
         });
-    }, [employees, teamSpecificMembers, selectedSkillId]); // Зависим от команды и навыка
+    }, [employees, teamSpecificMembers, selectedSkillId]); 
     
-    // Команды, доступные этому пользователю
     const availableTeams = useMemo(() => {
         if (!teams) return [];
-        if (currentUser.role === 'admin') return teams;
         return teams;
-    }, [teams, currentUser]);
+    }, [teams]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
-        const taskData = {
-            title: formData.get('taskTitle'),
-            description: formData.get('taskDescription'),
-            deadline: formData.get('taskDeadline'),
-            importance: parseInt(formData.get('taskImportance'), 10),
-            complexity: parseInt(formData.get('taskComplexity'), 10),
-            assigneeId: formData.get('taskAssignee') ? parseInt(formData.get('taskAssignee'), 10) : null, 
-            teamId: formData.get('taskTeam') ? parseInt(formData.get('taskTeam'), 10) : null, 
-            priority: 'medium'
-        };
         
-        if (!taskData.title || !taskData.description || !taskData.deadline) {
-            alert("Пожалуйста, заполните все обязательные поля.");
+        // Валидация
+        const newErrors = {};
+        const title = formData.get('taskTitle');
+        const description = formData.get('taskDescription');
+        const deadline = formData.get('taskDeadline');
+        const teamId = formData.get('taskTeam');
+
+        if (!title.trim()) newErrors.taskTitle = "Это обязательное поле. Необходимо заполнить";
+        if (!description.trim()) newErrors.taskDescription = "Это обязательное поле. Необходимо заполнить";
+        if (!deadline) newErrors.taskDeadline = "Это обязательное поле. Необходимо заполнить";
+        
+        // Специфичная валидация для менеджера
+        if (currentUser.role === 'manager' && !teamId) {
+             newErrors.taskTeam = "Менеджер обязан выбрать команду";
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
             return;
         }
 
+        const taskData = {
+            title,
+            description,
+            deadline,
+            importance: parseInt(formData.get('taskImportance'), 10),
+            complexity: parseInt(formData.get('taskComplexity'), 10),
+            assigneeId: formData.get('taskAssignee') ? parseInt(formData.get('taskAssignee'), 10) : null, 
+            teamId: teamId ? parseInt(teamId, 10) : null, 
+            priority: 'medium',
+            status: 'new' // Явно указываем статус
+        };
+        
         await onSave(taskData);
     };
 
     return (
-        // Меняем onClick на onMouseDown
         <div className="modal" style={{ display: 'flex' }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
             <div className="modal-content">
                 <div className="modal-header">
@@ -734,43 +746,73 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
                 </div>
                 
                 <div className="modal-body">
-                    <form onSubmit={handleSubmit}>
+                    {/* noValidate отключает стандартные браузерные подсказки */}
+                    <form onSubmit={handleSubmit} noValidate>
                         <div className="form-group">
                             <label htmlFor="taskTitle">Название задачи</label>
-                            <input type="text" id="taskTitle" name="taskTitle" placeholder="Введите название задачи" required />
+                            <input 
+                                type="text" 
+                                id="taskTitle" 
+                                name="taskTitle" 
+                                placeholder="Введите название задачи" 
+                                className={errors.taskTitle ? 'input-error' : ''}
+                                required 
+                                onChange={() => setErrors(prev => ({...prev, taskTitle: null}))}
+                            />
+                            {errors.taskTitle && <span className="validation-error-text">{errors.taskTitle}</span>}
                         </div>
+
                         <div className="form-group">
                             <label htmlFor="taskDescription">Описание задачи</label>
-                            <textarea id="taskDescription" name="taskDescription" placeholder="Введите описание задачи" rows="3" required></textarea>
+                            <textarea 
+                                id="taskDescription" 
+                                name="taskDescription" 
+                                placeholder="Введите описание задачи" 
+                                rows="3" 
+                                className={errors.taskDescription ? 'input-error' : ''}
+                                required
+                                onChange={() => setErrors(prev => ({...prev, taskDescription: null}))}
+                            ></textarea>
+                            {errors.taskDescription && <span className="validation-error-text">{errors.taskDescription}</span>}
                         </div>
                         
-                        {/* Поле "Команда" (только для админов и менеджеров) */}
                         {(currentUser.role === 'admin' || currentUser.role === 'manager') && (
                             <div className="form-group">
                                 <label htmlFor="taskTeam">Команда</label>
                                 <select 
                                     id="taskTeam" 
                                     name="taskTeam"
-                                    // Добавляем value и onChange
                                     value={selectedTeamId}
-                                    onChange={handleTeamChange}
-                                    // Менеджер ОБЯЗАН выбрать команду
+                                    className={errors.taskTeam ? 'input-error' : ''}
+                                    onChange={(e) => {
+                                        handleTeamChange(e);
+                                        setErrors(prev => ({...prev, taskTeam: null}));
+                                    }}
                                     required={currentUser.role === 'manager'} 
                                 >
                                     <option value="">{currentUser.role === 'admin' ? 'Без команды' : 'Выберите команду'}</option>
                                     {availableTeams.map(team => (
-                                        <option key={team.id} value={team.id}>
-                                            {team.name}
-                                        </option>
+                                        <option key={team.id} value={team.id}>{team.name}</option>
                                     ))}
                                 </select>
+                                {errors.taskTeam && <span className="validation-error-text">{errors.taskTeam}</span>}
                             </div>
                         )}
 
                         <div className="form-group">
                             <label htmlFor="taskDeadline">Срок выполнения</label>
-                            <input type="date" id="taskDeadline" name="taskDeadline" defaultValue={new Date().toISOString().split('T')[0]} required />
+                            <input 
+                                type="date" 
+                                id="taskDeadline" 
+                                name="taskDeadline" 
+                                defaultValue={new Date().toISOString().split('T')[0]} 
+                                className={errors.taskDeadline ? 'input-error' : ''}
+                                required 
+                                onChange={() => setErrors(prev => ({...prev, taskDeadline: null}))}
+                            />
+                            {errors.taskDeadline && <span className="validation-error-text">{errors.taskDeadline}</span>}
                         </div>
+
                         <div className="form-group">
                             <label htmlFor="taskImportance">Важность (1-10)</label>
                             <input type="number" id="taskImportance" name="taskImportance" min="1" max="10" defaultValue="5" />
@@ -780,68 +822,37 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
                             <input type="number" id="taskComplexity" name="taskComplexity" min="1" max="10" defaultValue="5" />
                         </div>
                         
-                        {/* Новый M2M Фильтр по навыкам (Категория + Навык) */}
                         <label>Фильтр по навыкам (для Исполнителя)</label>
                         <div className="form-row" style={{marginBottom: '20px'}}>
                             <div className="form-group">
-                                <select id="taskSkillCategory" value={selectedCategoryId} onChange={handleSkillCategoryChange}>
+                                <select id="taskSkillCategory" value={selectedCategoryId} onChange={(e) => {setSelectedCategoryId(e.target.value); setSelectedSkillId('');}}>
                                     <option value="">Выберите категорию</option>
-                                    {allSkills.map(cat => (
-                                        <option key={cat.category_id} value={cat.category_id}>
-                                            {cat.category_name}
-                                        </option>
-                                    ))}
+                                    {allSkills.map(cat => <option key={cat.category_id} value={cat.category_id}>{cat.category_name}</option>)}
                                 </select>
                             </div>
                             <div className="form-group">
-                                <select 
-                                    id="taskSkill" 
-                                    value={selectedSkillId} 
-                                    onChange={(e) => setSelectedSkillId(e.target.value)}
-                                    disabled={!selectedCategoryId}
-                                >
+                                <select id="taskSkill" value={selectedSkillId} onChange={(e) => setSelectedSkillId(e.target.value)} disabled={!selectedCategoryId}>
                                     <option value="">Выберите навык</option>
-                                    {availableSkills.map(skill => (
-                                        <option key={skill.skill_id} value={skill.skill_id}>
-                                            {skill.skill_name}
-                                        </option>
-                                    ))}
+                                    {availableSkills.map(skill => <option key={skill.skill_id} value={skill.skill_id}>{skill.skill_name}</option>)}
                                 </select>
                             </div>
                         </div>
                         
-                        <div className="form-group" id="assigneeGroup">
+                        <div className="form-group">
                             <label htmlFor="taskAssignee">Назначить сотруднику</label>
-                            <select 
-                                id="taskAssignee" 
-                                name="taskAssignee" 
-                                defaultValue=""
-                                disabled={loadingMembers} // Блокируем во время загрузки
-                            >
+                            <select id="taskAssignee" name="taskAssignee" defaultValue="" disabled={loadingMembers}>
                                 <option value="">{loadingMembers ? "Загрузка..." : "Не назначен"}</option>
-                                
-                                {/* Показываем "Себе" только если команда не выбрана ИЛИ (пользователь есть в этой команде) */}
                                 {(!teamSpecificMembers || teamSpecificMembers.some(m => m.id.toString() === currentUser.id.toString())) && (
                                    <option value={currentUser.id}>{currentUser.name || '...'} (себе)</option> 
                                 )}
-                                
-                                {filteredEmployees
-                                    .filter(emp => emp.id.toString() !== currentUser.id.toString()) // Убираем "себя" из этого списка
-                                    .map(emp => (
-                                        <option key={emp.id} value={emp.id}>
-                                            {/* Отображаем skill_name */}
-                                            {emp.name} - ({(emp.skills || []).map(s => s.skill_name).join(', ')})
-                                        </option>
+                                {filteredEmployees.filter(emp => emp.id.toString() !== currentUser.id.toString()).map(emp => (
+                                    <option key={emp.id} value={emp.id}>
+                                        {emp.name} - ({(emp.skills || []).map(s => s.skill_name).join(', ')})
+                                    </option>
                                 ))}
-                                
-                                {/* Если выбрана команда и в ней нет сотрудников */}
-                                {teamSpecificMembers && filteredEmployees.length === 0 && (
-                                    <option value="" disabled>В этой команде нет сотрудников</option>
-                                )}
-
                             </select>
                         </div>
-                        <button type="submit" className="login-btn" id="saveTaskBtn">Сохранить задачу</button>
+                        <button type="submit" className="login-btn">Сохранить задачу</button>
                     </form>
                 </div>
             </div>
@@ -906,26 +917,21 @@ const EmployeesModal = ({ onClose, onShowAdd, employees, canAdd, currentUser, on
 
 // AddEmployeeModal
 const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
-    const [error, setError] = useState(null);
-    // Состояние для хранения ВЫБРАННЫХ ID навыков
+    const [error, setError] = useState(null); // Ошибка API
+    const [formErrors, setFormErrors] = useState({}); // Ошибки валидации полей
+    
     const [selectedSkills, setSelectedSkills] = useState(new Set());
-
-    // UI для выбора навыков
     const [currentCategoryId, setCurrentCategoryId] = useState('');
     const [currentSkillId, setCurrentSkillId] = useState('');
 
-    // Навыки, доступные во второй dropdown, на основе выбранной категории
     const availableSkills = useMemo(() => {
         if (!currentCategoryId) return [];
         return allSkills.find(c => c.category_id === parseInt(currentCategoryId, 10))?.skills || [];
     }, [allSkills, currentCategoryId]);
     
-    // Навыки, которые уже выбраны (для отображения в списке)
     const selectedSkillsDetails = useMemo(() => {
         const details = [];
-        const allSkillsFlat = allSkills.flatMap(c => 
-            c.skills.map(s => ({...s, category_name: c.category_name}))
-        );
+        const allSkillsFlat = allSkills.flatMap(c => c.skills.map(s => ({...s, category_name: c.category_name})));
         selectedSkills.forEach(id => {
             const skill = allSkillsFlat.find(s => s.skill_id === id);
             if (skill) details.push(skill);
@@ -933,17 +939,14 @@ const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
         return details;
     }, [selectedSkills, allSkills]);
     
-    // Добавляем навык в Set
     const handleAddSkill = () => {
         if (currentSkillId) {
             setSelectedSkills(prev => new Set(prev).add(parseInt(currentSkillId, 10)));
-            // Сбрасываем выбор
             setCurrentCategoryId('');
             setCurrentSkillId('');
         }
     };
     
-    // Удаляем навык из Set
     const handleRemoveSkill = (skillId) => {
         setSelectedSkills(prevSelected => {
             const newSelected = new Set(prevSelected);
@@ -951,34 +954,34 @@ const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
             return newSelected;
         });
     };
-    // Конец UI
-
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError(null);
+        const newErrors = {};
         const formData = new FormData(e.target);
         
+        const name = formData.get('employeeName');
+        const login = formData.get('employeeLogin');
         const password = formData.get('employeePassword');
-        if (password.length < 8) {
-            setError('Пароль должен быть не менее 8 символов.');
+        const position = formData.get('employeePosition');
+
+        if (!name.trim()) newErrors.employeeName = "Это обязательное поле. Необходимо заполнить";
+        if (!login.trim()) newErrors.employeeLogin = "Это обязательное поле. Необходимо заполнить";
+        if (!password) newErrors.employeePassword = "Это обязательное поле. Необходимо заполнить";
+        else if (password.length < 8) newErrors.employeePassword = "Пароль должен быть не менее 8 символов";
+        if (!position.trim()) newErrors.employeePosition = "Это обязательное поле. Необходимо заполнить";
+
+        if (Object.keys(newErrors).length > 0) {
+            setFormErrors(newErrors);
             return;
         }
 
         const employeeData = {
-            name: formData.get('employeeName'),
-            login: formData.get('employeeLogin'),
-            password: password,
-            position: formData.get('employeePosition'),
+            name, login, password, position,
             role: formData.get('employeeRole'),
-            //Отправляем массив ID
             skill_ids: Array.from(selectedSkills) 
         };
-
-        if (!employeeData.name || !employeeData.login || !employeeData.position) {
-            setError('Пожалуйста, заполните все поля со звездочкой.');
-            return;
-        }
 
         try {
             await onSave(employeeData);
@@ -988,7 +991,6 @@ const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
     };
 
     return (
-        // Меняем onClick на onMouseDown
         <div className="modal" style={{ display: 'flex' }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
             <div className="modal-content">
                 <div className="modal-header">
@@ -997,31 +999,51 @@ const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
                 </div>
                 
                 <div className="modal-body">
-                    <form onSubmit={handleSubmit}>
+                    <form onSubmit={handleSubmit} noValidate>
                         <div className="form-group">
                             <label htmlFor="employeeName">Полное имя</label>
-                            <input type="text" id="employeeName" name="employeeName" placeholder="Например, Алексей П." required />
+                            <input 
+                                type="text" id="employeeName" name="employeeName" placeholder="Например, Алексей П." 
+                                className={formErrors.employeeName ? 'input-error' : ''}
+                                required 
+                                onChange={() => setFormErrors(prev => ({...prev, employeeName: null}))}
+                            />
+                            {formErrors.employeeName && <span className="validation-error-text">{formErrors.employeeName}</span>}
                         </div>
+
                         <div className="form-group">
                             <label htmlFor="employeeLogin">Логин</label>
-                            <input type="text" id="employeeLogin" name="employeeLogin" placeholder="Например, alex" required />
+                            <input 
+                                type="text" id="employeeLogin" name="employeeLogin" placeholder="Например, alex" 
+                                className={formErrors.employeeLogin ? 'input-error' : ''}
+                                required 
+                                onChange={() => setFormErrors(prev => ({...prev, employeeLogin: null}))}
+                            />
+                            {formErrors.employeeLogin && <span className="validation-error-text">{formErrors.employeeLogin}</span>}
                         </div>
+
                         <div className="form-group">
                             <label htmlFor="employeePassword">Пароль</label>
-                            {/* Добавлен autoComplete */}
                             <input 
-                                type="password" 
-                                id="employeePassword" 
-                                name="employeePassword" 
-                                placeholder="Минимум 8 символов" 
+                                type="password" id="employeePassword" name="employeePassword" placeholder="Минимум 8 символов" autoComplete="new-password"
+                                className={formErrors.employeePassword ? 'input-error' : ''}
                                 required 
-                                autoComplete="new-password"
+                                onChange={() => setFormErrors(prev => ({...prev, employeePassword: null}))}
                             />
+                            {formErrors.employeePassword && <span className="validation-error-text">{formErrors.employeePassword}</span>}
                         </div>
+
                         <div className="form-group">
                             <label htmlFor="employeePosition">Должность</label>
-                            <input type="text" id="employeePosition" name="employeePosition" placeholder="Например, Senior разработчик" required />
+                            <input 
+                                type="text" id="employeePosition" name="employeePosition" placeholder="Например, Senior разработчик" 
+                                className={formErrors.employeePosition ? 'input-error' : ''}
+                                required 
+                                onChange={() => setFormErrors(prev => ({...prev, employeePosition: null}))}
+                            />
+                            {formErrors.employeePosition && <span className="validation-error-text">{formErrors.employeePosition}</span>}
                         </div>
+
                         <div className="form-group">
                             <label htmlFor="employeeRole">Роль в системе</label>
                             <select id="employeeRole" name="employeeRole" defaultValue="user">
@@ -1031,125 +1053,228 @@ const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
                             </select>
                         </div>
                         
-                        {/* UI выбора навыков */}
                         <div className="form-group">
                             <label>Навыки</label>
                             <div className="form-row">
                                 <div className="form-group">
                                     <select value={currentCategoryId} onChange={(e) => { setCurrentCategoryId(e.target.value); setCurrentSkillId(''); }}>
                                         <option value="">1. Выберите категорию</option>
-                                        {allSkills.map(cat => (
-                                            <option key={cat.category_id} value={cat.category_id}>
-                                                {cat.category_name}
-                                            </option>
-                                        ))}
+                                        {allSkills.map(cat => <option key={cat.category_id} value={cat.category_id}>{cat.category_name}</option>)}
                                     </select>
                                 </div>
                                 <div className="form-group">
-                                    <select 
-                                        value={currentSkillId} 
-                                        onChange={(e) => setCurrentSkillId(e.target.value)}
-                                        disabled={!currentCategoryId}
-                                    >
+                                    <select value={currentSkillId} onChange={(e) => setCurrentSkillId(e.target.value)} disabled={!currentCategoryId}>
                                         <option value="">2. Выберите навык</option>
-                                        {availableSkills.map(skill => (
-                                            <option key={skill.skill_id} value={skill.skill_id}>
-                                                {skill.skill_name}
-                                            </option>
-                                        ))}
+                                        {availableSkills.map(skill => <option key={skill.skill_id} value={skill.skill_id}>{skill.skill_name}</option>)}
                                     </select>
                                 </div>
                             </div>
-                            <button 
-                                type="button" 
-                                className="btn btn-secondary" 
-                                disabled={!currentSkillId}
-                                onClick={handleAddSkill}
-                                style={{width: '100%', marginTop: '10px'}}
-                            >
+                            <button type="button" className="btn btn-secondary" disabled={!currentSkillId} onClick={handleAddSkill} style={{width: '100%', marginTop: '10px'}}>
                                 <i className="fas fa-plus"></i> Добавить навык
                             </button>
                         </div>
 
-                        {/* Список выбранных навыков */}
                         {selectedSkillsDetails.length > 0 && (
                             <div className="form-group">
                                 <label>Выбранные навыки:</label>
                                 <div className="selected-skills-list">
                                     {selectedSkillsDetails.map(skill => (
                                         <div key={skill.skill_id} className="selected-skill-item">
-                                            {/* Отображаем category_name из объекта */}
                                             <span>{skill.skill_name} <small>({skill.category_name})</small></span>
-                                            <button 
-                                                type="button" 
-                                                className="remove-skill-btn"
-                                                onClick={() => handleRemoveSkill(skill.skill_id)}
-                                            >
-                                                &times;
-                                            </button>
+                                            <button type="button" className="remove-skill-btn" onClick={() => handleRemoveSkill(skill.skill_id)}>&times;</button>
                                         </div>
                                     ))}
                                 </div>
                             </div>
                         )}
                         
-                        <button type="submit" className="login-btn" id="saveEmployeeBtn">Сохранить сотрудника</button>
-                        {error && (
-                            <div className="login-error" id="employeeError" style={{ display: 'block' }}>
-                                {error}
-                            </div>
-                        )}
+                        <button type="submit" className="login-btn">Сохранить сотрудника</button>
+                        {error && <div className="login-error" style={{ display: 'block' }}>{error}</div>}
                     </form>
                 </div>
             </div>
         </div>
     );
 };
-
 // Компонент модального окна профиля
-const UserProfileModal = ({ onClose, user, details }) => {
+const UserProfileModal = ({ onClose, user, details, allSkills, onUpdateUser }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    
+    // State формы
+    const [formData, setFormData] = useState({
+        name: user.name,
+        login: details.login || '',
+        position: details.position || '',
+        password: ''
+    });
+
+    // State навыков для редактирования
+    // Инициализируем текущими навыками пользователя
+    const [selectedSkills, setSelectedSkills] = useState(() => {
+        const initial = new Set();
+        if (details.skills) {
+            details.skills.forEach(s => initial.add(s.skill_id));
+        }
+        return initial;
+    });
+
+    // UI для добавления навыка (аналогично AddEmployee)
+    const [currentCategoryId, setCurrentCategoryId] = useState('');
+    const [currentSkillId, setCurrentSkillId] = useState('');
+
+    // Пересчет доступных навыков для дропдауна
+    const availableDropdownSkills = useMemo(() => {
+        if (!currentCategoryId) return [];
+        return allSkills.find(c => c.category_id === parseInt(currentCategoryId, 10))?.skills || [];
+    }, [allSkills, currentCategoryId]);
+
+    // Детали выбранных навыков для отображения тегов
+    const selectedSkillsDetails = useMemo(() => {
+        const detailsArr = [];
+        const allSkillsFlat = allSkills.flatMap(c => c.skills.map(s => ({...s, category_name: c.category_name})));
+        selectedSkills.forEach(id => {
+            const skill = allSkillsFlat.find(s => s.skill_id === id);
+            if (skill) detailsArr.push(skill);
+        });
+        return detailsArr;
+    }, [selectedSkills, allSkills]);
+
+    const handleAddSkill = () => {
+        if (currentSkillId) {
+            setSelectedSkills(prev => new Set(prev).add(parseInt(currentSkillId, 10)));
+            setCurrentCategoryId('');
+            setCurrentSkillId('');
+        }
+    };
+
+    const handleRemoveSkill = (skillId) => {
+        setSelectedSkills(prev => {
+            const next = new Set(prev);
+            next.delete(skillId);
+            return next;
+        });
+    };
+
+    const handleSave = () => {
+        const payload = {
+            name: formData.name,
+            login: formData.login,
+            position: formData.position,
+            skill_ids: Array.from(selectedSkills)
+        };
+        if (formData.password) {
+            payload.password = formData.password;
+        }
+        onUpdateUser(payload);
+    };
+
     return (
-        // Меняем onClick на onMouseDown
         <div className="modal" style={{ display: 'flex' }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-            <div className="modal-content" style={{ maxWidth: '450px' }}>
+            <div className="modal-content" style={{ maxWidth: '500px' }}>
                 <div className="modal-header">
-                    <div className="modal-title">Профиль пользователя</div>
+                    <div className="modal-title">
+                        {isEditing ? 'Редактирование профиля' : 'Профиль пользователя'}
+                    </div>
                     <div className="close-modal" onClick={onClose}>&times;</div>
                 </div>
                 <div className="modal-body profile-modal-body">
-                    <div className="profile-avatar">
-                        {user.avatar || '..'}
-                    </div>
-                    <div className="profile-info">
-                        <div className="profile-name">{user.name}</div>
-                        <div className="profile-login">@{details.login}</div>
-                    </div>
-                    
-                    <div className="profile-details">
-                        <div className="profile-detail-item">
-                            <span className="label">Роль в системе</span>
-                            <span className="value">{user.role}</span>
-                        </div>
-                        <div className="profile-detail-item">
-                            <span className="label">Должность</span>
-                            <span className="value">{details.position || 'Не указана'}</span>
-                        </div>
-                        <div className="profile-detail-item">
-                            <span className="label">Навыки</span>
-                            <div className="value skills-list">
-                                {/* Отображаем M2M навыки */}
-                                {(details.skills && details.skills.length > 0) ? (
-                                    details.skills.map(skill => (
-                                        <span key={skill.skill_id} className="skill-tag" title={skill.category_name}>
-                                            {skill.skill_name}
-                                        </span>
-                                    ))
-                                ) : (
-                                    'Навыки не указаны'
-                                )}
+                    {!isEditing ? (
+                        // Режим просмотра
+                        <>
+                            <div className="profile-avatar">{user.avatar || '..'}</div>
+                            <div className="profile-info">
+                                <div className="profile-name">{user.name}</div>
+                                <div className="profile-login">@{details.login}</div>
+                            </div>
+                            <div className="profile-details">
+                                <div className="profile-detail-item">
+                                    <span className="label">Роль</span>
+                                    <span className="value">{user.role}</span>
+                                </div>
+                                <div className="profile-detail-item">
+                                    <span className="label">Должность</span>
+                                    <span className="value">{details.position || 'Не указана'}</span>
+                                </div>
+                                <div className="profile-detail-item">
+                                    <span className="label">Навыки</span>
+                                    <div className="value skills-list">
+                                        {(details.skills && details.skills.length > 0) ? 
+                                            details.skills.map(s => <span key={s.skill_id} className="skill-tag">{s.skill_name}</span>) 
+                                            : '—'}
+                                    </div>
+                                </div>
+                            </div>
+                            <button className="btn btn-primary" style={{marginTop: '20px', width: '100%'}} onClick={() => setIsEditing(true)}>
+                                <i className="fas fa-edit"></i> Редактировать
+                            </button>
+                        </>
+                    ) : (
+                        // Режим редактирования
+                        <div style={{width: '100%'}}>
+                            <div className="form-group">
+                                <label>Имя</label>
+                                <input 
+                                    type="text" 
+                                    value={formData.name} 
+                                    onChange={e => setFormData({...formData, name: e.target.value})} 
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Логин</label>
+                                <input 
+                                    type="text" 
+                                    value={formData.login} 
+                                    onChange={e => setFormData({...formData, login: e.target.value})} 
+                                />
+                            </div>
+                             <div className="form-group">
+                                <label>Должность</label>
+                                <input 
+                                    type="text" 
+                                    value={formData.position} 
+                                    onChange={e => setFormData({...formData, position: e.target.value})} 
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Новый пароль (необязательно)</label>
+                                <input 
+                                    type="password" 
+                                    placeholder="Оставьте пустым, чтобы не менять"
+                                    value={formData.password} 
+                                    onChange={e => setFormData({...formData, password: e.target.value})} 
+                                />
+                            </div>
+
+                            {/* Редактирование навыков */}
+                            <div className="form-group">
+                                <label>Навыки</label>
+                                <div style={{display:'flex', gap:'5px', marginBottom:'5px'}}>
+                                    <select style={{flex:1}} value={currentCategoryId} onChange={e => {setCurrentCategoryId(e.target.value); setCurrentSkillId('');}}>
+                                        <option value="">Категория...</option>
+                                        {allSkills.map(c => <option key={c.category_id} value={c.category_id}>{c.category_name}</option>)}
+                                    </select>
+                                    <select style={{flex:1}} value={currentSkillId} onChange={e => setCurrentSkillId(e.target.value)} disabled={!currentCategoryId}>
+                                        <option value="">Навык...</option>
+                                        {availableDropdownSkills.map(s => <option key={s.skill_id} value={s.skill_id}>{s.skill_name}</option>)}
+                                    </select>
+                                    <button type="button" className="btn btn-secondary" onClick={handleAddSkill} disabled={!currentSkillId}>+</button>
+                                </div>
+                                <div className="selected-skills-list" style={{maxHeight: '100px'}}>
+                                    {selectedSkillsDetails.map(s => (
+                                        <div key={s.skill_id} className="selected-skill-item">
+                                            <span>{s.skill_name}</span>
+                                            <button type="button" className="remove-skill-btn" onClick={() => handleRemoveSkill(s.skill_id)}>&times;</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div style={{display: 'flex', gap: '10px', marginTop: '20px'}}>
+                                <button className="btn btn-primary" style={{flex: 1}} onClick={handleSave}>Сохранить</button>
+                                <button className="btn btn-secondary" style={{flex: 1}} onClick={() => setIsEditing(false)}>Отмена</button>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -1317,29 +1442,35 @@ const AnalyticsDashboard = ({ tasks, employees }) => {
             {/* Контейнер для одной диаграммы */}
             <div className="charts-list">
                 {activeChart === 'status' && (
-                    /* Увеличена высота для графика */
-                    <div className="chart-container" style={{ height: '450px' }}> 
+                    <div className="chart-container" style={{ height: '500px' }}> 
                         <h3>Распределение задач по статусам</h3>
-                        <Doughnut data={statusData} options={doughnutOptions} />
+                        <div className="chart-canvas-wrapper">
+                            <Doughnut data={statusData} options={doughnutOptions} />
+                        </div>
                     </div>
                 )}
                 {activeChart === 'quadrants' && (
-                     /* Увеличена высота для графика */
-                     <div className="chart-container" style={{ height: '450px' }}> 
+                    <div className="chart-container" style={{ height: '500px' }}> 
                         <h3>Распределение по квадрантам (Активные задачи)</h3>
-                        <Pie data={quadrantData} options={pieOptions} />
+                        <div className="chart-canvas-wrapper">
+                            <Pie data={quadrantData} options={pieOptions} />
+                        </div>
                     </div>
                 )}
-                 {activeChart === 'complexity' && (
-                     <div className="chart-container" style={{ height: '400px' }}>
+                {activeChart === 'complexity' && (
+                    <div className="chart-container" style={{ height: '450px' }}>
                         <h3>Распределение по сложности</h3>
-                        <Bar data={complexityData} options={barOptions} />
+                        <div className="chart-canvas-wrapper">
+                            <Bar data={complexityData} options={barOptions} />
+                        </div>
                     </div>
                 )}
                 {activeChart === 'load' && (
-                     <div className="chart-container" style={{ height: '500px' }}>
+                    <div className="chart-container" style={{ height: '500px' }}>
                         <h3>Загрузка сотрудников (Активные задачи)</h3>
-                        <Bar data={employeeLoadData} options={barOptions} />
+                        <div className="chart-canvas-wrapper">
+                            <Bar data={employeeLoadData} options={barOptions} />
+                        </div>
                     </div>
                 )}
             </div>
