@@ -105,6 +105,10 @@ export const deleteTaskApi = (id) => apiFetch(`/tasks/${id}`, { method: 'DELETE'
 export const getEmployeesApi = () => apiFetch('/users');
 export const createEmployeeApi = (employeeData) => apiFetch('/users', { method: 'POST', body: JSON.stringify(employeeData) });
 export const deleteEmployeeApi = (id) => apiFetch(`/users/${id}`, { method: 'DELETE' });
+export const updateEmployeeApi = (id, data) => apiFetch(`/users/${id}`, { 
+    method: 'PATCH', 
+    body: JSON.stringify(data) 
+});
 
 
 // API Навыков
