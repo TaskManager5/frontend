@@ -62,6 +62,21 @@ html, body, #root {
     margin-bottom: 20px;
 }
 
+/* Сообщение об ошибке валидации (вместо браузерного пузыря) */
+.validation-error-text {
+    color: var(--danger);
+    font-size: 12px;
+    margin-top: 5px;
+    display: block;
+    font-weight: 500;
+}
+
+/* Красим рамку инпута при ошибке */
+.input-error {
+    border-color: var(--danger) !important;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1) !important;
+}
+
 .form-group label {
     display: block;
     margin-bottom: 8px;
@@ -1013,10 +1028,21 @@ html, body, #root {
 
 .chart-container {
     background: white;
-    padding: 25px;
+    padding: 20px;
     border-radius: 12px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-    /* Высота задается онлайн-стилем в JSX для адаптивности */
+    /*используем Flexbox, чтобы канвас занимал место правильно */
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+/* Обертка для самого Canvas, чтобы он не вылезал */
+.chart-canvas-wrapper {
+    flex: 1;
+    position: relative;
+    min-height: 0; /* Fix для Flexbox overflow */
+    width: 100%;
 }
 
 .chart-container h3 {
@@ -2168,3 +2194,4 @@ html, body, #root {
     stroke: var(--primary) !important; /* Синий при выделении */
     stroke-width: 3px !important;
 }
+
