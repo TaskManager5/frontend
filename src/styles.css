@@ -2195,3 +2195,227 @@ html, body, #root {
     stroke-width: 3px !important;
 }
 
+/* Стили для SkillGraph (Граф Навыков) */
+
+.skill-selector-sidebar {
+    width: 300px; /* Сделали чуть шире для удобства */
+    background: white;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    overflow-y: auto;
+    transition: margin-left 0.3s ease; /* Плавное скрытие */
+    flex-shrink: 0;
+    z-index: 5;
+}
+
+/* Скрытое состояние сайдбара */
+.skill-selector-sidebar.collapsed {
+    margin-left: -300px; /* Уезжает влево на свою ширину */
+}
+
+/* Кнопка сворачивания */
+.sidebar-toggle-btn {
+    position: absolute;
+    top: 20px;
+    left: 300px; /* Позиция когда открыт (ширина сайдбара) */
+    z-index: 10;
+    width: 32px;
+    height: 32px;
+    border-radius: 0 8px 8px 0;
+    background: white;
+    border: 1px solid var(--border);
+    border-left: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
+    transition: left 0.3s ease;
+}
+
+/* Кнопка двигается вместе с сайдбаром */
+.skill-selector-sidebar.collapsed + .sidebar-toggle-btn, /* Если сайдбар перед кнопкой в DOM */
+.skill-graph-wrapper .sidebar-toggle-btn { /* Общий селектор */
+   /* React перерендерит класс, но CSS transition сработает если привязать к left */
+}
+
+/* Исправление для позиции кнопки при закрытом меню */
+.skill-selector-sidebar.collapsed ~ .sidebar-toggle-btn {
+    left: 0;
+}
+
+.skill-selector-sidebar h3 {
+    margin-bottom: 15px;
+    font-size: 18px;
+    color: var(--dark);
+}
+
+/* Фильтр категорий */
+.category-filter-box {
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border);
+}
+
+.category-filter-box label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray);
+    margin-bottom: 5px;
+}
+
+.category-filter-box select {
+    width: 100%;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background-color: var(--light);
+}
+
+.skill-selector-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1; /* Чтобы список занимал место */
+}
+
+.skill-checkbox-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #fff;
+}
+
+.skill-checkbox-item:hover {
+    background-color: var(--light);
+}
+
+.skill-checkbox-item.checked {
+    background-color: #eff6ff; 
+    border-color: var(--primary);
+}
+
+.skill-checkbox-item input {
+    margin-right: 10px;
+    accent-color: var(--primary);
+    width: 16px;
+    height: 16px;
+}
+
+.skill-name {
+    font-weight: 600;
+    font-size: 14px;
+    flex: 1;
+}
+
+.skill-cat-label {
+    font-size: 10px;
+    color: var(--gray);
+    background: #f1f5f9;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.hint-text {
+    margin-top: 20px;
+    padding: 10px;
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-radius: 6px;
+    color: #92400e;
+    line-height: 1.4;
+    font-size: 12px;
+}
+
+.no-skills-msg {
+    color: var(--gray);
+    font-style: italic;
+    text-align: center;
+    padding: 20px 0;
+    font-size: 13px;
+}
+
+/* Стили узлов графа */
+.skill-graph-node {
+    padding: 10px 15px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    background: white;
+    border: 2px solid transparent;
+    min-width: 140px; /* Чуть шире */
+    position: relative;
+}
+
+.skill-node-style {
+    background: linear-gradient(135deg, #475569, #1e293b);
+    color: white;
+    border: 2px solid #fff;
+    z-index: 2;
+}
+
+.skill-node-label {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.employee-node-style {
+    background: white;
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.employee-node-style .emp-avatar {
+    width: 40px;
+    height: 40px;
+    background: var(--light);
+    color: var(--gray);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+.employee-node-style .emp-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--dark);
+    margin-bottom: 2px;
+}
+
+.employee-node-style .emp-match-count {
+    font-size: 10px;
+    color: var(--gray);
+}
+
+/* Подсветка */
+.employee-node-style.node-highlighted {
+    border-color: #2563eb;       
+    box-shadow: 0 0 20px rgba(37, 99, 235, 0.5); 
+    transform: scale(1.1);       
+    z-index: 10;
+}
+
+.employee-node-style.node-highlighted .emp-avatar {
+    background: #2563eb;
+    color: white;
+}
+
+.employee-node-style.node-highlighted .emp-match-count {
+    color: #2563eb;
+    font-weight: bold;
+}
