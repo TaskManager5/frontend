@@ -16,6 +16,7 @@ import {
 import TeamsManagement from '../TeamsManagement/TeamsManagement';
 import SkillsManagement from '../SkillsManagement/SkillsManagement'; 
 import TeamGraph from '../TeamGraph/TeamGraph'; 
+import SkillGraph from '../TeamGraph/SkillGraph';
 
 // Импорты для графиков
 import { Doughnut, Pie, Bar } from 'react-chartjs-2';
@@ -341,6 +342,10 @@ const AppLayout = ({ user, onLogout }) => {
                     <li className={`menu-item ${currentView === 'graph' ? 'active' : ''}`} onClick={() => setCurrentView('graph')}>
                         <i className="fas fa-project-diagram"></i><span>Схема проекта</span>
                     </li>
+                    {/* Пункт меню Граф навыков */}
+                    <li className={`menu-item ${currentView === 'skillGraph' ? 'active' : ''}`} onClick={() => setCurrentView('skillGraph')}>
+                        <i className="fas fa-project-diagram"></i><span>Граф навыков</span>
+                    </li>
                     <li className="menu-item" onClick={() => setEmployeesModalOpen(true)}>
                         <i className="fas fa-users"></i><span>Сотрудники</span>
                     </li>
@@ -365,7 +370,8 @@ const AppLayout = ({ user, onLogout }) => {
                              currentView === 'analytics' ? 'Аналитика' : 
                              currentView === 'teams' ? 'Управление командами' : 
                              currentView === 'skills' ? 'Управление навыками' :
-                             currentView === 'graph' ? 'Схема проекта' : ''}
+                             currentView === 'graph' ? 'Схема проекта' : 
+                             currentView === 'skillGraph' ? 'Граф пересечения навыков' : ''}
                         </div>
                         <div className="search-box">
                             <i className="fas fa-search"></i>
@@ -446,6 +452,13 @@ const AppLayout = ({ user, onLogout }) => {
                         {currentView === 'graph' && (
                             <TeamGraph 
                                 currentUser={userInfo}
+                            />
+                        )}
+                        {/*Рендер SkillGraph */}
+                        {currentView === 'skillGraph' && (
+                            <SkillGraph 
+                                employees={employees}
+                                allSkills={allSkills}
                             />
                         )}
                     </div>
