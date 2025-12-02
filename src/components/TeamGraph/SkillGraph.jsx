@@ -1,14 +1,27 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import ReactFlow, { 
   useNodesState, 
   useEdgesState, 
+  addEdge, 
   Background,
   Controls,
   Handle,
   Position,
-  ReactFlowProvider
+  ReactFlowProvider,
+  useReactFlow
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+
+// Константы для области размещения
+const GRAPH_WIDTH = 2500; // для уменьшения наложений
+const GRAPH_HEIGHT = 1500; // для уменьшения наложений
+const MIN_Y_POSITION = 200; // Минимальный Y, чтобы избежать наложения с узлами навыков
+const NODE_SIZE = 180;      // Приблизительный минимальный размер узла (160 + отступы)
+
+// Вспомогательная функция для простого рандомного размещения
+
+// Функция для генерации случайного числа в диапазоне
+const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 // Кастомные узлы 
 
@@ -17,6 +30,7 @@ const SkillNode = ({ data }) => {
   return (
     <div className="skill-graph-node skill-node-style">
       <div className="skill-node-label">{data.label}</div>
+      {/* Ручки можно оставить по умолчанию, но для гибкости добавим все */}
       <Handle type="source" position={Position.Bottom} style={{ background: '#555' }} />
     </div>
   );
@@ -24,15 +38,26 @@ const SkillNode = ({ data }) => {
 
 // 2. Узел Сотрудника (Нижняя сетка)
 const EmployeeNode = ({ data }) => {
-  const classes = `skill-graph-node employee-node-style ${data.isMatch ? 'node-highlighted' : ''}`;
+  // Уберем highlight, если нет выбранных навыков, чтобы они не были все подсвечены
+  const classes = `skill-graph-node employee-node-style ${data.isMatch && data.totalSelected > 0 ? 'node-highlighted' : ''}`;
   
   return (
     <div className={classes}>
+      {/* Точки подключения по всем сторонам для гибких связей */}
       <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
+      <Handle type="target" position={Position.Left} style={{ background: '#555' }} />
+      <Handle type="target" position={Position.Right} style={{ background: '#555' }} />
+      <Handle type="source" position={Position.Top} style={{ background: '#555' }} />
+      <Handle type="source" position={Position.Left} style={{ background: '#555' }} />
+      <Handle type="source" position={Position.Right} style={{ background: '#555' }} />
+      <Handle type="source" position={Position.Bottom} style={{ background: '#555' }} /> {/* Оставляем нижнюю, как и была */}
+      
       <div className="emp-avatar">{data.avatar}</div>
       <div className="emp-name">{data.label}</div>
       <div className="emp-match-count">
-        Совпадений: {data.matchCount} из {data.totalSelected}
+        {data.totalSelected > 0 ? 
+            `Совпадений: ${data.matchCount} из ${data.totalSelected}` 
+            : `Роль: ${data.role}`}
       </div>
     </div>
   );
@@ -55,9 +80,30 @@ const SkillGraphContent = ({ employees, allSkills }) => {
   // Состояние: сайдбар открыт/закрыт
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   
-  // React Flow State
+  // React Flow State 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  const reactFlowInstance = useReactFlow(); // Для fitView, если нужно
+  
+  // Добавляем возможность создавать связи между сотрудниками
+  const onConnect = useCallback((params) => {
+    // Проверяем, что соединяются два узла-сотрудника
+    if (params.source.startsWith('emp-') && params.target.startsWith('emp-')) {
+        // Добавляем связь с типом 'straight'
+        setEdges((eds) => addEdge({ 
+            ...params, 
+            type: 'straight', 
+            animated: false,
+            style: { 
+                stroke: '#84cc16', 
+                strokeWidth: 2,
+                opacity: 1
+            } 
+        }, eds));
+    }
+  }, [setEdges]);
+
 
   // Плоский список всех навыков
   const flatSkills = useMemo(() => {
@@ -88,100 +134,159 @@ const SkillGraphContent = ({ employees, allSkills }) => {
       });
   };
 
-  // ГЕНЕРАЦИЯ ГРАФА
   useEffect(() => {
-    if (selectedSkillIds.length === 0) {
-        setNodes([]);
-        setEdges([]);
-        return;
-    }
+    const skillNodes = [];
+    let tempEdges = []; 
 
-    const newNodes = [];
-    const newEdges = [];
-
-    // 1. Узлы НАВЫКОВ (ряд y=50)
-    const skillSpacing = 220;
-    // Центрируем навыки
-    const totalSkillsWidth = selectedSkillIds.length * skillSpacing;
-    // Используем ширину окна или фиксированную, чтобы найти центр
-    const centerX = window.innerWidth / 2; // Приблизительный центр конваса
-    const startXSkills = centerX - (totalSkillsWidth / 2) + 100; // +100 сдвиг вправо от сайдбара
-
-    selectedSkillIds.forEach((sId, index) => {
-        const skillInfo = flatSkills.find(s => s.skill_id === sId);
-        if (!skillInfo) return;
-
-        newNodes.push({
-            id: `skill-${sId}`,
-            type: 'skill',
-            position: { x: startXSkills + index * skillSpacing, y: 50 },
-            data: { label: skillInfo.skill_name }
-        });
-    });
-
-    // 2. Находим релевантных сотрудников
-    const relevantEmployees = employees.filter(emp => {
-        if (!emp.skills) return false;
-        return emp.skills.some(s => selectedSkillIds.includes(s.skill_id));
-    });
-
-    // 3. Узлы СОТРУДНИКОВ (Сетка начиная с y=300)
-    const empWidth = 180; // Ширина узла + отступ
-    const empHeight = 140; // Высота узла + отступ
-    const columns = 6; // Сколько сотрудников в ряд
+    const hasSelectedSkills = selectedSkillIds.length > 0;
     
-    // Рассчитываем ширину сетки сотрудников, чтобы центрировать её
-    const gridWidth = Math.min(relevantEmployees.length, columns) * empWidth;
-    const startXEmps = centerX - (gridWidth / 2) + 100;
+    // 1. Узлы НАВЫКОВ (только если выбраны)
+    if (hasSelectedSkills) {
+        const skillSpacing = 220;
+        const centerOffset = 600; 
+        const totalSkillsWidth = selectedSkillIds.length * skillSpacing;
+        const startXSkills = centerOffset - (totalSkillsWidth / 2);
 
-    relevantEmployees.forEach((emp, index) => {
-        const empSkillIds = emp.skills.map(s => s.skill_id);
-        const matchCount = selectedSkillIds.filter(id => empSkillIds.includes(id)).length;
-        const isFullMatch = matchCount === selectedSkillIds.length;
+        selectedSkillIds.forEach((sId, index) => {
+            const skillInfo = flatSkills.find(s => s.skill_id === sId);
+            if (!skillInfo) return;
 
-        // Логика СЕТКИ (Grid Layout)
-        const col = index % columns;
-        const row = Math.floor(index / columns);
-
-        newNodes.push({
-            id: `emp-${emp.id}`,
-            type: 'employee',
-            // x зависит от колонки, y зависит от ряда
-            position: { 
-                x: startXEmps + col * empWidth, 
-                y: 300 + row * empHeight 
-            },
-            data: { 
-                label: emp.name,
-                avatar: emp.name.split(' ').map(n=>n[0]).join(''),
-                isMatch: isFullMatch,
-                matchCount: matchCount,
-                totalSelected: selectedSkillIds.length
-            }
+            const nodeId = `skill-${sId}`;
+            skillNodes.push({
+                id: nodeId,
+                type: 'skill',
+                position: { x: startXSkills + index * skillSpacing, y: 50 }, 
+                data: { label: skillInfo.skill_name }
+            });
         });
+    }
+    
+    // 2. Узлы СОТРУДНИКОВ (всегда)
+    // Используем функциональное обновление setNodes для сохранения перетащенных позиций
+    setNodes(currentNodes => {
+        const employeeNodes = [];
+        
+        employees.forEach((emp) => {
+            const nodeId = `emp-${emp.id}`;
+            const existingNode = currentNodes.find(n => n.id === nodeId);
+            
+            let matchCount = 0;
+            let isFullMatch = false;
 
-        // 4. Связи
-        selectedSkillIds.forEach(sId => {
-            if (empSkillIds.includes(sId)) {
-                newEdges.push({
-                    id: `e-${sId}-${emp.id}`,
-                    source: `skill-${sId}`,
-                    target: `emp-${emp.id}`,
-                    animated: isFullMatch,
-                    style: { 
-                        stroke: isFullMatch ? '#2563eb' : '#cbd5e1',
-                        strokeWidth: isFullMatch ? 3 : 1,
-                        opacity: isFullMatch ? 1 : 0.2
-                    }
+            if (hasSelectedSkills) {
+                const empSkillIds = emp.skills.map(s => s.skill_id);
+                matchCount = selectedSkillIds.filter(id => empSkillIds.includes(id)).length;
+                isFullMatch = matchCount === selectedSkillIds.length;
+            }
+
+            let position;
+            
+            // 1. Приоритет - сохраненная позиция
+            if (existingNode && existingNode.position.x !== 0 && existingNode.position.y !== 0) {
+                position = existingNode.position; 
+            } else {
+                // 2. Иначе - генерируем хаотичную позицию 
+                position = {
+                    x: getRandomInt(0, GRAPH_WIDTH - NODE_SIZE),
+                    y: getRandomInt(MIN_Y_POSITION, GRAPH_HEIGHT - NODE_SIZE),
+                };
+            }
+
+
+            employeeNodes.push({
+                id: nodeId,
+                type: 'employee',
+                position: position, 
+                data: { 
+                    label: emp.name,
+                    role: emp.role,
+                    avatar: emp.name.split(' ').map(n=>n[0]).join(''),
+                    isMatch: isFullMatch,
+                    matchCount: matchCount,
+                    totalSelected: selectedSkillIds.length
+                },
+                style: { minWidth: '160px', minHeight: '120px' } 
+            });
+
+            // 3. Связи (навык-сотрудник)
+            if (hasSelectedSkills) {
+                const empSkillIds = emp.skills.map(s => s.skill_id);
+                selectedSkillIds.forEach(sId => {
+                    const isSkillMatch = empSkillIds.includes(sId);
+                    
+                    tempEdges.push({
+                        id: `e-${sId}-${emp.id}`,
+                        source: `skill-${sId}`,
+                        target: nodeId,
+                        type: 'straight', 
+                        animated: isFullMatch,
+                        style: { 
+                            stroke: isFullMatch ? '#2563eb' : (isSkillMatch ? '#64748b' : '#a1a1aa'), 
+                            strokeWidth: isFullMatch ? 3 : (isSkillMatch ? 2 : 1),
+                            opacity: isFullMatch ? 1 : (isSkillMatch ? 0.7 : 0.4) 
+                        }
+                    });
                 });
             }
         });
+        
+        // Объединяем узлы навыков и узлы сотрудников
+        return [...skillNodes, ...employeeNodes];
     });
 
-    setNodes(newNodes);
-    setEdges(newEdges);
+    
+    // 4. Добавляем старые связи "сотрудник-сотрудник"
+    // Используем функциональное обновление setEdges для доступа к последнему состоянию edges
+    setEdges(currentEdges => {
+        // Фильтруем только существующие edge'ы между сотрудниками
+        const userEdges = currentEdges.filter(e => 
+            e.source.startsWith('emp-') && e.target.startsWith('emp-')
+        );
+        // Возвращаем новые связи (навык-сотрудник) + сохраненные пользовательские связи
+        return [...tempEdges, ...userEdges];
+    });
 
-  }, [selectedSkillIds, employees, flatSkills, setNodes, setEdges]);
+    
+    // При первом рендере или когда навыки выбраны, центрируем
+    setTimeout(() => {
+        reactFlowInstance.fitView({ padding: 0.2, duration: 300 }); 
+    }, 50);
+    
+  }, [selectedSkillIds, employees, flatSkills, setNodes, setEdges, reactFlowInstance]);
+  
+  // Объект для отображения иконок навыков (симуляция)
+  const skillIcons = useMemo(() => ({
+    'React': 'fab fa-react',
+    'Node.js': 'fab fa-node-js',
+    'JavaScript': 'fab fa-js-square',
+    'CSS': 'fab fa-css3-alt',
+    'HTML': 'fab fa-html5',
+    'Docker': 'fab fa-docker',
+    'Kubernetes': 'fas fa-cubes',
+    'Python': 'fab fa-python',
+    'SQL': 'fas fa-database',
+    'Management': 'fas fa-user-tie',
+    'Leadership': 'fas fa-handshake',
+    'Git': 'fab fa-git-alt',
+    'AWS': 'fab fa-aws',
+  }), []);
+
+  // Функция для получения иконки
+  const getSkillIcon = (skillName) => {
+    // Удаляем из имени пробелы и не-буквы/цифры для нормализации
+    const normalizedName = skillName.replace(/\s/g, '').replace(/[^a-zA-Z0-9.]/g, ''); 
+    
+    // Ищем точное совпадение в мапе:
+    if (skillIcons[skillName]) return skillIcons[skillName];
+    
+    // Или ищем по подстроке:
+    const found = Object.keys(skillIcons).find(key => 
+        normalizedName.includes(key.replace(/\s/g, '').replace(/[^a-zA-Z0-9.]/g, ''))
+    );
+    
+    return found ? skillIcons[found] : 'fas fa-wrench'; // Иконка по умолчанию
+  };
+
 
   return (
     <div className="skill-graph-wrapper" style={{ display: 'flex', height: '100%', position: 'relative' }}>
@@ -222,6 +327,8 @@ const SkillGraphContent = ({ employees, allSkills }) => {
                             checked={selectedSkillIds.includes(skill.skill_id)}
                             onChange={() => toggleSkill(skill.skill_id)}
                         />
+                        {/* ДОБАВЛЕНИЕ ИКОНКИ */}
+                        <i className={`${getSkillIcon(skill.skill_name)} skill-icon-list`}></i> 
                         <span className="skill-name">{skill.skill_name}</span>
                         {/* Показываем категорию, только если выбран режим "Все категории" */}
                         {!selectedCategory && <span className="skill-cat-label">{skill.category}</span>}
@@ -243,9 +350,14 @@ const SkillGraphContent = ({ employees, allSkills }) => {
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
+            onEdgesChange={onEdgesChange} 
+            onConnect={onConnect} 
             nodeTypes={nodeTypes}
-            fitView
+            fitView 
+            minZoom={0.2}
+            maxZoom={4}
+            // Убеждаемся, что узлы можно перетаскивать
+            nodesDraggable={true} 
         >
             <Background color="#aaa" gap={16} />
             <Controls />
