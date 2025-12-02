@@ -814,7 +814,8 @@ html, body, #root {
     align-items: center;
     justify-content: center;
     font-weight: bold;
-    font-size: 16px;
+    margin-right: 12px;
+    font-size: 18px;
     flex-shrink: 0;
 }
 
@@ -1070,7 +1071,7 @@ html, body, #root {
         padding: 15px;
     }
 }
-/*  Конец стилей аналитики  */
+/* Конец стилей аналитики  */
 
 
 /* Стили для фильтра навыков */
@@ -2185,9 +2186,9 @@ html, body, #root {
 }
 
 /* Стили для линий связей (делаем их плавнее) */
+/* Убран класс, чтобы React Flow мог управлять цветом. Убедимся, что react-flow__edge-path не имеет тут настроек */
 .react-flow__edge-path {
     stroke-width: 2px !important;
-    stroke: #cbd5e1; /* Светло-серый по умолчанию */
 }
 
 .react-flow__edge.selected .react-flow__edge-path {
@@ -2308,6 +2309,15 @@ html, body, #root {
     accent-color: var(--primary);
     width: 16px;
     height: 16px;
+}
+
+/* для иконок навыков */
+.skill-icon-list {
+    margin-right: 8px; /* Отступ справа от иконки до имени */
+    font-size: 16px;
+    color: var(--primary); /* Выделяем иконку цветом */
+    width: 20px; /* Фиксируем ширину для ровного списка */
+    text-align: center;
 }
 
 .skill-name {
