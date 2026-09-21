@@ -7,12 +7,16 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# --- Этап 2: раздача через Nginx ---
-FROM nginx:alpine
+# --- Этап 2: preview-сервер Vite ---
+FROM node:20-alpine
 
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+WORKDIR /app
 
-EXPOSE 80
+COPY package*.json ./
+RUN npm ci --omit=dev
 
-CMD ["nginx", "-g", "daemon off;"]
+COPY --from=build /app/dist ./dist
+
+EXPOSE 4173
+
+CMD ["npx", "vite", "preview", "--host", "0.0.0.0", "--port", "4173"]
