@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { loginApi } from '../../api/api';
 
 const LoginPage = ({ onLoginSuccess }) => {
-  const [login, setLogin] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [login, setLogin] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
