@@ -180,7 +180,7 @@ const AppLayout = ({ user, onLogout }) => {
                 filtered = filtered.filter(task => isTaskUrgent(task) && !task.completed);
                 break;
             case 'important':
-                filtered.filter(task => task.importance >= 4 && !task.completed);
+                filtered = filtered.filter(task => task.importance >= 4 && !task.completed);
                 break;
             case 'completed':
                 filtered = filtered.filter(task => task.completed);
@@ -1368,7 +1368,7 @@ const AnalyticsDashboard = ({ tasks, employees }) => {
     };
 
     const complexityData = {
-        labels: ['Низкая (1-3)', 'Средняя (4-6)', 'Высокая (7-10)'],
+        labels: ['Низкая (1-2)', 'Средняя (3)', 'Высокая (4-5)'],
         datasets: [{
             label: 'Количество задач',
             data: [complexityStats.low, complexityStats.medium, complexityStats.high],
