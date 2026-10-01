@@ -47,7 +47,7 @@ function calculateQuadrant(importance, deadline) {
     
 
     const isUrgent = daysDiff <= 2;
-    const isImportant = importance >= 7;
+    const isImportant = importance >= 4;
     
     if (isUrgent && isImportant) return 1;
     if (!isUrgent && isImportant) return 2;
@@ -180,7 +180,7 @@ const AppLayout = ({ user, onLogout }) => {
                 filtered = filtered.filter(task => isTaskUrgent(task) && !task.completed);
                 break;
             case 'important':
-                filtered = filtered.filter(task => task.importance >= 7 && !task.completed);
+                filtered.filter(task => task.importance >= 4 && !task.completed);
                 break;
             case 'completed':
                 filtered = filtered.filter(task => task.completed);
@@ -592,14 +592,14 @@ const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, currentUser, matrix
                                     {task.title}
                                     {task.completed && <span className="completed-badge">Выполнено</span>}
                                 </div>
-                                <span className={`complexity-badge complexity-${task.complexity >= 7 ? 'high' : task.complexity >= 4 ? 'medium' : 'low'}`}>
-                                    Сложность: {task.complexity}/10
+                                <span className={`complexity-badge complexity-${task.complexity >= 4 ? 'high' : task.complexity >= 3 ? 'medium' : 'low'}`}>
+                                    Сложность: {task.complexity}/5
                                 </span>
                             </div>
                             <div className="task-description">{task.description}</div>
                             <div className="task-meta">
                                 <span><i className="far fa-calendar"></i> {formatDate(task.deadline)}</span>
-                                <span><i className="fas fa-bolt"></i> Важность: {task.importance}/10</span>
+                                <span><i className="fas fa-bolt"></i> Важность: {task.importance}/5</span>
                                 {/* Показываем сотрудника */}
                                 {task.assignee_name && (
                                     <span><i className="fas fa-user"></i> {task.assignee_name}</span>
@@ -827,12 +827,12 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
                         </div>
 
                         <div className="form-group">
-                            <label htmlFor="taskImportance">Важность (1-10)</label>
-                            <input type="number" id="taskImportance" name="taskImportance" min="1" max="10" defaultValue="5" />
+                            <label htmlFor="taskImportance">Важность (1-5)</label>
+                            <input type="number" id="taskImportance" name="taskImportance" min="1" max="5" defaultValue="3" />
                         </div>
                         <div className="form-group">
-                            <label htmlFor="taskComplexity">Сложность (1-10)</label>
-                            <input type="number" id="taskComplexity" name="taskComplexity" min="1" max="10" defaultValue="5" />
+                            <label htmlFor="taskComplexity">Сложность (1-5)</label>
+                            <input type="number" id="taskComplexity" name="taskComplexity" min="1" max="5" defaultValue="3" />
                         </div>
                         
                         <label>Фильтр по навыкам (для Исполнителя)</label>
@@ -1326,8 +1326,8 @@ const AnalyticsDashboard = ({ tasks, employees }) => {
     const complexityStats = useMemo(() => {
         const stats = {low: 0, medium: 0, high: 0};
         tasks.forEach(task => {
-            if (task.complexity >= 7) stats.high++;
-            else if (task.complexity >= 4) stats.medium++;
+            if (task.complexity >= 4) stats.high++;
+            else if (task.complexity >= 3) stats.medium++;
             else stats.low++;
         });
         return stats;
