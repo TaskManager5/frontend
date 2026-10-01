@@ -16,6 +16,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
+# Копируем vite.config.js — иначе Vite не увидит allowedHosts
+COPY vite.config.js ./
+
 # Копируем собранную статику
 COPY --from=build /app/dist ./dist
 
