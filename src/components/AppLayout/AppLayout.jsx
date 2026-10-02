@@ -722,7 +722,6 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
         const teamId = formData.get('taskTeam');
 
         if (!title.trim()) newErrors.taskTitle = "Это обязательное поле. Необходимо заполнить";
-        if (!description.trim()) newErrors.taskDescription = "Это обязательное поле. Необходимо заполнить";
         if (!deadline) newErrors.taskDeadline = "Это обязательное поле. Необходимо заполнить";
         
         // Специфичная валидация для менеджера
