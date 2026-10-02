@@ -13,6 +13,7 @@ import {
     deleteEmployeeApi,
     updateEmployeeApi
 } from '../../api/api';
+import { getErrorMessage } from '../../utils/errorMessages';
 import TeamsManagement from '../TeamsManagement/TeamsManagement';
 import SkillsManagement from '../SkillsManagement/SkillsManagement'; 
 import TeamGraph from '../TeamGraph/TeamGraph'; 
@@ -228,7 +229,7 @@ const AppLayout = ({ user, onLogout }) => {
             await loadData(); // Перезагружаем все данные
         } catch (error) {
             console.error("Ошибка сохранения задачи:", error);
-            alert("Не удалось сохранить задачу.");
+            alert(getErrorMessage(error));
         }
     };
 
