@@ -782,7 +782,6 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
                                 placeholder="Введите описание задачи" 
                                 rows="3" 
                                 className={errors.taskDescription ? 'input-error' : ''}
-                                required
                                 onChange={() => setErrors(prev => ({...prev, taskDescription: null}))}
                             ></textarea>
                             {errors.taskDescription && <span className="validation-error-text">{errors.taskDescription}</span>}
