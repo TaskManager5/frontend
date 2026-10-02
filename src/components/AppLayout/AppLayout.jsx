@@ -723,7 +723,16 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
 
         if (!title.trim()) newErrors.taskTitle = "Это обязательное поле. Необходимо заполнить";
         if (!deadline) newErrors.taskDeadline = "Это обязательное поле. Необходимо заполнить";
-        
+        const importance = parseInt(formData.get('taskImportance'), 10);
+        const complexity = parseInt(formData.get('taskComplexity'), 10);
+
+        if (isNaN(importance) || importance < 1 || importance > 5) {
+            newErrors.taskImportance = "Важность должна быть от 1 до 5";
+        }
+        if (isNaN(complexity) || complexity < 1 || complexity > 5) {
+            newErrors.taskComplexity = "Сложность должна быть от 1 до 5";
+        }        
+
         // Специфичная валидация для менеджера
         if (currentUser.role === 'manager' && !teamId) {
              newErrors.taskTeam = "Менеджер обязан выбрать команду";
@@ -826,11 +835,11 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
 
                         <div className="form-group">
                             <label htmlFor="taskImportance">Важность (1-5)</label>
-                            <input type="number" id="taskImportance" name="taskImportance" min="1" max="5" defaultValue="3" />
+                            <input type="number" id="taskImportance" name="taskImportance" min="1" max="5" defaultValue="3" className={errors.taskImportance ? "input-error" : ""} onChange={() => setErrors(prev => ({...prev, taskImportance: null}))} />{errors.taskImportance && <span className="validation-error-text">{errors.taskImportance}</span>}
                         </div>
                         <div className="form-group">
                             <label htmlFor="taskComplexity">Сложность (1-5)</label>
-                            <input type="number" id="taskComplexity" name="taskComplexity" min="1" max="5" defaultValue="3" />
+                            <input type="number" id="taskComplexity" name="taskComplexity" min="1" max="5" defaultValue="3" className={errors.taskComplexity ? "input-error" : ""} onChange={() => setErrors(prev => ({...prev, taskComplexity: null}))} />{errors.taskComplexity && <span className="validation-error-text">{errors.taskComplexity}</span>}
                         </div>
                         
                         <label>Фильтр по навыкам (для Исполнителя)</label>
