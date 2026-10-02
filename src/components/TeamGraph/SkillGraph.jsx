@@ -70,13 +70,14 @@ const nodeTypes = {
 
 // Основной компонент
 
-const SkillGraphContent = ({ employees, allSkills }) => {
+const SkillGraphContent = ({ employees, allSkills, teams, teamMembersMap }) => {
   // Состояние: выбранные навыки
   const [selectedSkillIds, setSelectedSkillIds] = useState([]);
   
   // Состояние: фильтр категории
   const [selectedCategory, setSelectedCategory] = useState('');
 
+  const [selectedTeamId, setSelectedTeamId] = useState('');
   // Состояние: сайдбар открыт/закрыт
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   
@@ -126,6 +127,16 @@ const SkillGraphContent = ({ employees, allSkills }) => {
       if (!selectedCategory) return flatSkills;
       return flatSkills.filter(s => s.category_id.toString() === selectedCategory.toString());
   }, [flatSkills, selectedCategory]);
+  // Фильтруем сотрудников по команде
+  const filteredEmployees = useMemo(() => {
+    if (!selectedTeamId) return employees;
+    if (selectedTeamId === "__none__") {
+      const allMemberIds = new Set(Object.values(teamMembersMap || {}).flat());
+      return employees.filter(e => !allMemberIds.has(e.id));
+    }
+    const teamMemberIds = (teamMembersMap || {})[selectedTeamId] || [];
+    return employees.filter(e => teamMemberIds.includes(e.id));
+  }, [employees, selectedTeamId, teamMembersMap]);
 
   const toggleSkill = (skillId) => {
       setSelectedSkillIds(prev => {
@@ -166,7 +177,7 @@ const SkillGraphContent = ({ employees, allSkills }) => {
     setNodes(currentNodes => {
         const employeeNodes = [];
         
-        employees.forEach((emp) => {
+        filteredEmployees.forEach((emp) => {
             const nodeId = `emp-${emp.id}`;
             const existingNode = currentNodes.find(n => n.id === nodeId);
             
@@ -252,7 +263,7 @@ const SkillGraphContent = ({ employees, allSkills }) => {
         reactFlowInstance.fitView({ padding: 0.2, duration: 300 }); 
     }, 50);
     
-  }, [selectedSkillIds, employees, flatSkills, setNodes, setEdges, reactFlowInstance]);
+  }, [selectedSkillIds, filteredEmployees, flatSkills, setNodes, setEdges, reactFlowInstance]);
   
   // Объект для отображения иконок навыков (симуляция)
   const skillIcons = useMemo(() => ({
@@ -315,6 +326,20 @@ const SkillGraphContent = ({ employees, allSkills }) => {
                 {categories.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
+            </select>
+        </div>
+        {/* Фильтр по команде */}
+        <div className="category-filter-box" style={{ marginTop: '12px' }}>
+            <label>Команда:</label>
+            <select 
+                value={selectedTeamId} 
+                onChange={(e) => setSelectedTeamId(e.target.value)}
+            >
+                <option value="">-- Все команды --</option>
+                {(teams || []).map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+                <option value="__none__">-- Без команды --</option>
             </select>
         </div>
 

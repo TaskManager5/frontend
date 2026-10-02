@@ -79,6 +79,7 @@ const AppLayout = ({ user, onLogout }) => {
     const [employees, setEmployees] = useState([]); // globalState.employees
     const [tasks, setTasks] = useState([]);         // globalState.tasks
     const [teams, setTeams] = useState([]); 
+    const [teamMembersMap, setTeamMembersMap] = useState({});
     const [allSkills, setAllSkills] = useState([]);
     const [currentFilter, setCurrentFilter] = useState('all');
     const [currentView, setCurrentView] = useState('tasks');
@@ -123,7 +124,18 @@ const AppLayout = ({ user, onLogout }) => {
             ]);
 
             setEmployees(employeeData);
-            setTeams(teamData); 
+            setTeams(teamData);
+            // Загружаем участников каждой команды
+            const membersMap = {};
+            for (const team of teamData) {
+                try {
+                    const members = await getTeamMembersApi(team.id);
+                    membersMap[team.id] = members.map(m => m.id);
+                } catch (err) {
+                    membersMap[team.id] = [];
+                }
+            }
+            setTeamMembersMap(membersMap); 
             setAllSkills(skillsData); 
 
             // Сопоставляем имя сотрудника с задачей
@@ -472,6 +484,8 @@ const AppLayout = ({ user, onLogout }) => {
                             <SkillGraph 
                                 employees={employees}
                                 allSkills={allSkills}
+                                teams={teams}
+                                teamMembersMap={teamMembersMap}
                             />
                         )}
                     </div>
