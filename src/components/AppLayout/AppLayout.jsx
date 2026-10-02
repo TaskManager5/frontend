@@ -1096,11 +1096,19 @@ const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
                         <div className="form-group">
                             <label htmlFor="employeePosition">Должность</label>
                             <input 
-                                type="text" id="employeePosition" name="employeePosition" placeholder="Например, Senior разработчик" 
+                                type="text" id="employeePosition" list="positionOptions" name="employeePosition" placeholder="Например, Senior разработчик" 
                                 className={formErrors.employeePosition ? 'input-error' : ''}
                                 required 
                                 onChange={() => setFormErrors(prev => ({...prev, employeePosition: null}))}
                             />
+                            <datalist id="positionOptions">
+                                <option value="Разработчик" />
+                                <option value="Senior разработчик" />
+                                <option value="Менеджер" />
+                                <option value="Аналитик" />
+                                <option value="Тестировщик" />
+                                <option value="Дизайнер" />
+                            </datalist>
                             {formErrors.employeePosition && <span className="validation-error-text">{formErrors.employeePosition}</span>}
                         </div>
 
@@ -1117,14 +1125,16 @@ const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
                             <label>Навыки</label>
                             <div className="form-row">
                                 <div className="form-group">
+                                    <label>Категория</label>
                                     <select value={currentCategoryId} onChange={(e) => { setCurrentCategoryId(e.target.value); setCurrentSkillId(''); }}>
-                                        <option value="">1. Выберите категорию</option>
+                                        <option value="">— Не выбрано —</option>
                                         {allSkills.map(cat => <option key={cat.category_id} value={cat.category_id}>{cat.category_name}</option>)}
                                     </select>
                                 </div>
                                 <div className="form-group">
+                                    <label>Навык</label>
                                     <select value={currentSkillId} onChange={(e) => setCurrentSkillId(e.target.value)} disabled={!currentCategoryId}>
-                                        <option value="">2. Выберите навык</option>
+                                        <option value="">— Не выбрано —</option>
                                         {availableSkills.map(skill => <option key={skill.skill_id} value={skill.skill_id}>{skill.skill_name}</option>)}
                                     </select>
                                 </div>
