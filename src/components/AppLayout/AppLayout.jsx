@@ -87,6 +87,7 @@ const AppLayout = ({ user, onLogout }) => {
 
     // Состояние модальных окон 
     const [isTaskModalOpen, setTaskModalOpen] = useState(false);
+    const [editingTask, setEditingTask] = useState(null);
     const [isEmployeesModalOpen, setEmployeesModalOpen] = useState(false);
     const [isAddEmployeeModalOpen, setAddEmployeeModalOpen] = useState(false);
     
@@ -222,15 +223,25 @@ const AppLayout = ({ user, onLogout }) => {
     
     // Обработчики Задач 
     
-    const handleSaveTask = async (taskData) => {
+    const handleSaveTask = async (taskData, taskId = null) => {
         try {
-            await createTaskApi(taskData);
+            if (taskId) {
+                await updateTaskApi(taskId, taskData);
+            } else {
+                await createTaskApi(taskData);
+            }
             setTaskModalOpen(false);
-            await loadData(); // Перезагружаем все данные
+            setEditingTask(null);
+            await loadData();
         } catch (error) {
             console.error("Ошибка сохранения задачи:", error);
             alert(getErrorMessage(error));
         }
+    };
+    
+    const handleEditTask = (task) => {
+        setEditingTask(task);
+        setTaskModalOpen(true);
     };
 
     const handleToggleTask = async (task) => {
@@ -424,6 +435,7 @@ const AppLayout = ({ user, onLogout }) => {
                                 quadrants={quadrants}
                                 onToggleTask={handleToggleTask}
                                 onDeleteTask={handleDeleteTask}
+                                onEditTask={handleEditTask}
                                 currentUser={userInfo}
                                 matrixView={matrixView} // Передаем режим просмотра
                             />
@@ -495,7 +507,12 @@ const AppLayout = ({ user, onLogout }) => {
             {/* 3. Модальные окна */}
             {isTaskModalOpen && (
                 <AddTaskModal 
-                    onClose={() => setTaskModalOpen(false)}
+                    key={editingTask?.id || 'new'}
+                    task={editingTask}
+                    onClose={() => {
+                        setTaskModalOpen(false);
+                        setEditingTask(null);
+                    }}
                     onSave={handleSaveTask}
                     employees={employees}
                     currentUser={userInfo}
@@ -553,7 +570,7 @@ const AppLayout = ({ user, onLogout }) => {
 // Компоненты-помощники 
 
 // TaskMatrix теперь принимает matrixView
-const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, currentUser, matrixView }) => {
+const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, onEditTask, currentUser, matrixView }) => {
     
     // Упрощаем canDeleteTask (проверяем, что created_by существует)
     const canDeleteTask = (task) => {
@@ -616,6 +633,13 @@ const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, currentUser, matrix
                                     {task.completed ? 'Выполнено' : 'Выполнить'}
                                 </button>
                                 <button 
+                                    className="task-action-btn edit-btn" 
+                                    onClick={() => onEditTask(task)}
+                                    title="Редактировать задачу"
+                                >
+                                    <i className="fas fa-edit"></i> Редактировать
+                                </button>
+                                <button 
                                     className="task-action-btn delete-btn" 
                                     onClick={() => onDeleteTask(task.id)}
                                     disabled={!canDeleteTask(task)}
@@ -653,7 +677,7 @@ const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, currentUser, matrix
 };
 
 // AddTaskModal
-const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkills }) => {
+const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkills, task }) => {
     // Логика связанных списков
     const [selectedTeamId, setSelectedTeamId] = useState('');
     const [teamSpecificMembers, setTeamSpecificMembers] = useState(null);
@@ -756,7 +780,7 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
             status: 'new' // Явно указываем статус
         };
         
-        await onSave(taskData);
+        await onSave(taskData, task?.id);
     };
 
     return (
@@ -775,7 +799,8 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
                             <input 
                                 type="text" 
                                 id="taskTitle" 
-                                name="taskTitle" 
+                                name="taskTitle"
+                                defaultValue={task?.title || ''} 
                                 placeholder="Введите название задачи" 
                                 className={errors.taskTitle ? 'input-error' : ''}
                                 required 
@@ -792,6 +817,7 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
                                 placeholder="Введите описание задачи" 
                                 rows="3" 
                                 className={errors.taskDescription ? 'input-error' : ''}
+                                defaultValue={task?.description || ""}
                                 onChange={() => setErrors(prev => ({...prev, taskDescription: null}))}
                             ></textarea>
                             {errors.taskDescription && <span className="validation-error-text">{errors.taskDescription}</span>}
@@ -824,9 +850,8 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
                             <label htmlFor="taskDeadline">Срок выполнения</label>
                             <input 
                                 type="date" 
-                                id="taskDeadline" 
+                                defaultValue={task?.deadline ? task.deadline.split('T')[0] : new Date().toISOString().split('T')[0]}
                                 name="taskDeadline" 
-                                defaultValue={new Date().toISOString().split('T')[0]} 
                                 className={errors.taskDeadline ? 'input-error' : ''}
                                 required 
                                 onChange={() => setErrors(prev => ({...prev, taskDeadline: null}))}
@@ -836,11 +861,11 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
 
                         <div className="form-group">
                             <label htmlFor="taskImportance">Важность (1-5)</label>
-                            <input type="number" id="taskImportance" name="taskImportance" min="1" max="5" defaultValue="3" className={errors.taskImportance ? "input-error" : ""} onChange={() => setErrors(prev => ({...prev, taskImportance: null}))} />{errors.taskImportance && <span className="validation-error-text">{errors.taskImportance}</span>}
+                            <input type="number" id="taskImportance" name="taskImportance" min="1" max="5" defaultValue={task?.importance || 3} className={errors.taskImportance ? "input-error" : ""} onChange={() => setErrors(prev => ({...prev, taskImportance: null}))} />{errors.taskImportance && <span className="validation-error-text">{errors.taskImportance}</span>}
                         </div>
                         <div className="form-group">
                             <label htmlFor="taskComplexity">Сложность (1-5)</label>
-                            <input type="number" id="taskComplexity" name="taskComplexity" min="1" max="5" defaultValue="3" className={errors.taskComplexity ? "input-error" : ""} onChange={() => setErrors(prev => ({...prev, taskComplexity: null}))} />{errors.taskComplexity && <span className="validation-error-text">{errors.taskComplexity}</span>}
+                            <input type="number" id="taskComplexity" name="taskComplexity" min="1" max="5" defaultValue={task?.complexity || 3} className={errors.taskComplexity ? "input-error" : ""} onChange={() => setErrors(prev => ({...prev, taskComplexity: null}))} />{errors.taskComplexity && <span className="validation-error-text">{errors.taskComplexity}</span>}
                         </div>
                         
                         <label>Фильтр по навыкам (для Исполнителя)</label>
