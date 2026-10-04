@@ -78,6 +78,7 @@ const SkillGraphContent = ({ employees, allSkills, teams, teamMembersMap }) => {
   const [selectedCategory, setSelectedCategory] = useState('');
 
   const [selectedTeamId, setSelectedTeamId] = useState('');
+  const [skillSearchTerm, setSkillSearchTerm] = useState('');
   // Состояние: сайдбар открыт/закрыт
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   
@@ -124,9 +125,16 @@ const SkillGraphContent = ({ employees, allSkills, teams, teamMembersMap }) => {
 
   // Фильтруем навыки для отображения в списке
   const visibleSkills = useMemo(() => {
-      if (!selectedCategory) return flatSkills;
-      return flatSkills.filter(s => s.category_id.toString() === selectedCategory.toString());
-  }, [flatSkills, selectedCategory]);
+    let skills = flatSkills;
+    if (selectedCategory) {
+      skills = skills.filter(s => s.category_id.toString() === selectedCategory.toString());
+    }
+    if (skillSearchTerm.trim()) {
+      const term = skillSearchTerm.toLowerCase();
+      skills = skills.filter(s => s.skill_name.toLowerCase().includes(term) || (s.category && s.category.toLowerCase().includes(term)));
+    }
+    return skills;
+  }, [flatSkills, selectedCategory, skillSearchTerm]);
   // Фильтруем сотрудников по команде
   const filteredEmployees = useMemo(() => {
     if (!selectedTeamId) return employees;
@@ -327,6 +335,17 @@ const SkillGraphContent = ({ employees, allSkills, teams, teamMembersMap }) => {
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
             </select>
+        </div>
+        {/* Текстовый поиск навыка */}
+        <div className="category-filter-box" style={{ marginTop: '12px' }}>
+            <label>Поиск навыка:</label>
+            <input 
+                type="text"
+                placeholder="Введите название..."
+                value={skillSearchTerm}
+                onChange={(e) => setSkillSearchTerm(e.target.value)}
+                style={{ width: '100%', padding: '8px' }}
+            />
         </div>
         {/* Фильтр по команде */}
         <div className="category-filter-box" style={{ marginTop: '12px' }}>
