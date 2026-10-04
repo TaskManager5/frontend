@@ -89,6 +89,7 @@ const AppLayout = ({ user, onLogout }) => {
     // Состояние модальных окон 
     const [isTaskModalOpen, setTaskModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState(null);
+    const [newTaskParentId, setNewTaskParentId] = useState(null);
     const [isEmployeesModalOpen, setEmployeesModalOpen] = useState(false);
     const [isAddEmployeeModalOpen, setAddEmployeeModalOpen] = useState(false);
     
@@ -186,6 +187,8 @@ const AppLayout = ({ user, onLogout }) => {
     // Логика задач (Фильтрация)
     const filteredTasks = useMemo(() => {
         let filtered = tasks;
+        // В матрице показываем только макрозадачи (подзадачи — внутри карточек)
+        filtered = filtered.filter(task => !task.parent_task_id);
         const today = new Date();
         today.setHours(0, 0, 0, 0); 
 
@@ -255,6 +258,13 @@ const AppLayout = ({ user, onLogout }) => {
         setEditingTask(task);
         setTaskModalOpen(true);
     };
+
+    const handleAddSubtask = (parentTask) => {
+        setNewTaskParentId(parentTask.id);
+        setEditingTask(null);
+        setTaskModalOpen(true);
+    };
+
 
     const handleToggleTask = async (task) => {
         const newStatus = task.completed ? 'in_progress' : 'done';
@@ -448,8 +458,10 @@ const AppLayout = ({ user, onLogout }) => {
                                 onToggleTask={handleToggleTask}
                                 onDeleteTask={handleDeleteTask}
                                 onEditTask={handleEditTask}
+                                onAddSubtask={handleAddSubtask}
                                 currentUser={userInfo}
                                 matrixView={matrixView} // Передаем режим просмотра
+                                tasks={tasks}
                             />
                         )}
                         {currentView === 'analytics' && (
@@ -521,11 +533,12 @@ const AppLayout = ({ user, onLogout }) => {
             {/* 3. Модальные окна */}
             {isTaskModalOpen && (
                 <AddTaskModal 
-                    key={editingTask?.id || 'new'}
+                    key={editingTask?.id || newTaskParentId || 'new'}
                     task={editingTask}
                     onClose={() => {
                         setTaskModalOpen(false);
                         setEditingTask(null);
+                        setNewTaskParentId(null);
                     }}
                     onSave={handleSaveTask}
                     employees={employees}
@@ -533,6 +546,7 @@ const AppLayout = ({ user, onLogout }) => {
                     teams={teams}
                     allSkills={allSkills} 
                     tasks={tasks}
+                    newTaskParentId={newTaskParentId}
                 />
             )}
             {isEmployeesModalOpen && (
@@ -585,7 +599,7 @@ const AppLayout = ({ user, onLogout }) => {
 // Компоненты-помощники 
 
 // TaskMatrix теперь принимает matrixView
-const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, onEditTask, currentUser, matrixView }) => {
+const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, onEditTask, onAddSubtask, currentUser, matrixView, tasks }) => {
     
     // Упрощаем canDeleteTask (проверяем, что created_by существует)
     const canDeleteTask = (task) => {
@@ -642,6 +656,30 @@ const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, onEditTask, current
                                     <span><i className="fas fa-users"></i> {task.team_name}</span>
                                 )}
                             </div>
+                            {(() => {
+                                const subtasks = (tasks || []).filter(t => t.parent_task_id === task.id);
+                                if (subtasks.length === 0) return null;
+                                const doneCount = subtasks.filter(t => t.completed).length;
+                                return (
+                                    <div className="subtasks-block">
+                                        <div className="subtasks-header">
+                                            <i className="fas fa-tasks"></i> Подзадачи: {doneCount}/{subtasks.length}
+                                        </div>
+                                        <div className="subtasks-list">
+                                            {subtasks.map(st => (
+                                                <div key={st.id} className={`subtask-item ${st.completed ? 'subtask-completed' : ''}`}>
+                                                    <span className="subtask-title">{st.title}</span>
+                                                    {st.assignee_name && (
+                                                        <span className="subtask-assignee">
+                                                            <i className="fas fa-user"></i> {st.assignee_name}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                             <div className="task-actions">
                                 <button className="task-action-btn complete-btn" onClick={() => onToggleTask(task)}>
                                     <i className={`fas fa-${task.completed ? 'undo' : 'check'}`}></i> 
@@ -653,6 +691,13 @@ const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, onEditTask, current
                                     title="Редактировать задачу"
                                 >
                                     <i className="fas fa-edit"></i> Редактировать
+                                </button>
+                                <button 
+                                    className="task-action-btn subtask-btn" 
+                                    onClick={() => onAddSubtask(task)}
+                                    title="Создать подзадачу"
+                                >
+                                    <i className="fas fa-plus"></i> Подзадача
                                 </button>
                                 <button 
                                     className="task-action-btn delete-btn" 
@@ -692,7 +737,7 @@ const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, onEditTask, current
 };
 
 // AddTaskModal
-const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkills, task, tasks }) => {
+const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkills, task, tasks, newTaskParentId }) => {
     // Логика связанных списков
     const [selectedTeamId, setSelectedTeamId] = useState('');
     const [teamSpecificMembers, setTeamSpecificMembers] = useState(null);
@@ -815,7 +860,7 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
                             <select 
                                 id="taskParent"
                                 name="taskParent"
-                                defaultValue={task?.parent_task_id || ''}
+                                defaultValue={task?.parent_task_id || newTaskParentId || ''}
                             >
                                 <option value="">— Нет (макрозадача) —</option>
                                 {(tasks || []).filter(t => !t.parent_task_id && t.id !== task?.id).map(t => (
