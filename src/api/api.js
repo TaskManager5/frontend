@@ -1,6 +1,6 @@
 import Cookies from 'js-cookie';
 
-const API_URL = '';
+const API_URL = '/api';
 
 function parseJwt(token) {
     try {
