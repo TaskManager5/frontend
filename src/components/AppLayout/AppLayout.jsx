@@ -532,6 +532,7 @@ const AppLayout = ({ user, onLogout }) => {
                     currentUser={userInfo}
                     teams={teams}
                     allSkills={allSkills} 
+                    tasks={tasks}
                 />
             )}
             {isEmployeesModalOpen && (
@@ -691,7 +692,7 @@ const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, onEditTask, current
 };
 
 // AddTaskModal
-const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkills, task }) => {
+const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkills, task, tasks }) => {
     // Логика связанных списков
     const [selectedTeamId, setSelectedTeamId] = useState('');
     const [teamSpecificMembers, setTeamSpecificMembers] = useState(null);
@@ -789,7 +790,8 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
             importance: parseInt(formData.get('taskImportance'), 10),
             complexity: parseInt(formData.get('taskComplexity'), 10),
             assigneeId: formData.get('taskAssignee') ? parseInt(formData.get('taskAssignee'), 10) : null, 
-            teamId: teamId ? parseInt(teamId, 10) : null, 
+            teamId: teamId ? parseInt(teamId, 10) : null,
+            parentTaskId: formData.get("taskParent") ? parseInt(formData.get("taskParent"), 10) : null, 
             priority: 'medium',
             status: 'new' // Явно указываем статус
         };
@@ -809,6 +811,20 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
                     {/* noValidate отключает стандартные браузерные подсказки */}
                     <form onSubmit={handleSubmit} noValidate>
                         <div className="form-group">
+                            <label htmlFor="taskParent">Родительская задача</label>
+                            <select 
+                                id="taskParent"
+                                name="taskParent"
+                                defaultValue={task?.parent_task_id || ''}
+                            >
+                                <option value="">— Нет (макрозадача) —</option>
+                                {(tasks || []).filter(t => !t.parent_task_id && t.id !== task?.id).map(t => (
+                                    <option key={t.id} value={t.id}>{t.title}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                            <div className="form-group">
                             <label htmlFor="taskTitle">Название задачи</label>
                             <input 
                                 type="text" 
