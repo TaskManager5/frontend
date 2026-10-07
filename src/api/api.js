@@ -103,6 +103,10 @@ export const deleteTaskApi = (id) => apiFetch(`/tasks/${id}`, { method: 'DELETE'
 
 // API Сотрудников
 export const getEmployeesApi = () => apiFetch('/users');
+export const getWorkersApi = () => apiFetch('/workers');
+export const createWorkerApi = (workerData) => apiFetch('/workers', { method: 'POST', body: JSON.stringify(workerData) });
+export const updateWorkerApi = (id, workerData) => apiFetch(`/workers/${id}`, { method: 'PATCH', body: JSON.stringify(workerData) });
+export const deleteWorkerApi = (id) => apiFetch(`/workers/${id}`, { method: 'DELETE' });
 export const createEmployeeApi = (employeeData) => apiFetch('/users', { method: 'POST', body: JSON.stringify(employeeData) });
 export const deleteEmployeeApi = (id) => apiFetch(`/users/${id}`, { method: 'DELETE' });
 export const updateEmployeeApi = (id, data) => apiFetch(`/users/${id}`, { 
