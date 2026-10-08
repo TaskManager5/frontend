@@ -70,7 +70,7 @@ const nodeTypes = {
 
 // Основной компонент
 
-const SkillGraphContent = ({ employees, allSkills, teams, teamMembersMap }) => {
+const SkillGraphContent = ({ workers, allSkills, teams, teamMembersMap }) => {
   // Состояние: выбранные навыки
   const [selectedSkillIds, setSelectedSkillIds] = useState([]);
   
@@ -137,14 +137,14 @@ const SkillGraphContent = ({ employees, allSkills, teams, teamMembersMap }) => {
   }, [flatSkills, selectedCategory, skillSearchTerm]);
   // Фильтруем сотрудников по команде
   const filteredEmployees = useMemo(() => {
-    if (!selectedTeamId) return employees;
+    if (!selectedTeamId) return workers;
     if (selectedTeamId === "__none__") {
       const allMemberIds = new Set(Object.values(teamMembersMap || {}).flat());
-      return employees.filter(e => !allMemberIds.has(e.id));
+      return workers.filter(e => !allMemberIds.has(e.id));
     }
     const teamMemberIds = (teamMembersMap || {})[selectedTeamId] || [];
-    return employees.filter(e => teamMemberIds.includes(e.id));
-  }, [employees, selectedTeamId, teamMembersMap]);
+    return workers.filter(e => teamMemberIds.includes(e.id));
+  }, [workers, selectedTeamId, teamMembersMap]);
 
   const toggleSkill = (skillId) => {
       setSelectedSkillIds(prev => {
@@ -218,7 +218,7 @@ const SkillGraphContent = ({ employees, allSkills, teams, teamMembersMap }) => {
                 position: position, 
                 data: { 
                     label: emp.name,
-                    role: emp.role,
+                    role: emp.position || emp.login || '—',
                     avatar: emp.name.split(' ').map(n=>n[0]).join(''),
                     isMatch: isFullMatch,
                     matchCount: matchCount,

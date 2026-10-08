@@ -499,7 +499,7 @@ const AppLayout = ({ user, onLogout }) => {
                         {/*Рендер SkillGraph */}
                         {currentView === 'skillGraph' && (
                             <SkillGraph 
-                                employees={employees}
+                                workers={workers}
                                 allSkills={allSkills}
                                 teams={teams}
                                 teamMembersMap={teamMembersMap}
@@ -573,6 +573,7 @@ const AppLayout = ({ user, onLogout }) => {
                 <AddEmployeeModal 
                     onClose={() => setAddEmployeeModalOpen(false)}
                     onSave={handleSaveEmployee}
+                    onRefresh={loadData}
                     allSkills={allSkills} 
                 />
             )}
@@ -1056,7 +1057,7 @@ const EmployeesModal = ({ onClose, onShowAdd, workers, canAdd, currentUser, onDe
 };
 
 // AddEmployeeModal
-const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
+const AddEmployeeModal = ({ onClose, onSave, onRefresh, allSkills }) => {
     const [error, setError] = useState(null); // Ошибка API
     const [formErrors, setFormErrors] = useState({}); // Ошибки валидации полей
     const [hasAccount, setHasAccount] = useState(true); // Создать с учётной записью?
@@ -1138,7 +1139,7 @@ const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
                     skill_ids: Array.from(selectedSkills)
                 });
                 onClose();
-                window.location.reload();
+                if (onRefresh) await onRefresh();
             }
         } catch (err) {
             setError(err.error === 'Пользователь с таким логином уже существует' ? 'Логин уже занят.' : (err.error || 'Ошибка сервера.'));

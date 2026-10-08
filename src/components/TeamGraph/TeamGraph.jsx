@@ -135,7 +135,7 @@ const TeamGraphContent = ({ currentUser }) => {
                 };
             }
 
-            const fullEmployee = allWorkers.find(e => e.id === member.id);
+            const fullEmployee = allWorkers.find(e => String(e.id) === String(member.id));
             const skillNames = fullEmployee?.skills?.map(s => s.skill_name) || [];
 
             return {
@@ -143,7 +143,7 @@ const TeamGraphContent = ({ currentUser }) => {
               type: 'employee',
               position: position,
               data: { 
-                label: fullEmployee?.name || member.login, 
+                label: fullEmployee?.name || member.name || member.login || `Сотрудник ${member.id}`, 
                 userId: member.id,
                 skills: skillNames,
                 onRemove: handleRemoveMember 
@@ -241,7 +241,7 @@ const TeamGraphContent = ({ currentUser }) => {
           await addTeamMemberApi(selectedTeamId, userId, 'member');
           
           // Обновляем граф, но НОВЫЙ узел ставим в позицию DROP, а не в круг          
-          const fullEmployee = allWorkers.find(e => e.id === userId);
+          const fullEmployee = allWorkers.find(e => String(e.id) === String(userId));
           const newNode = {
               id: nodeId,
               type: 'employee',
