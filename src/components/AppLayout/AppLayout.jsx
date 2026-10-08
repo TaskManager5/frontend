@@ -5,7 +5,9 @@ import {
     createTaskApi, 
     updateTaskApi, 
     deleteTaskApi, 
-    getEmployeesApi, 
+    getEmployeesApi,
+    getWorkersApi,
+    createWorkerApi, 
     createEmployeeApi,
     getTeamsApi,
     getTeamMembersApi,
@@ -78,7 +80,8 @@ const AppLayout = ({ user, onLogout }) => {
     const [userInfo, setUserInfo] = useState(user); // user (id, role, jti)
     const [employees, setEmployees] = useState([]); // globalState.employees
     const [tasks, setTasks] = useState([]);         // globalState.tasks
-    const [teams, setTeams] = useState([]); 
+    const [teams, setTeams] = useState([]);
+    const [workers, setWorkers] = useState([]); 
     const [teamMembersMap, setTeamMembersMap] = useState({});
     const [allSkills, setAllSkills] = useState([]);
     const [currentFilter, setCurrentFilter] = useState('all');
@@ -117,15 +120,17 @@ const AppLayout = ({ user, onLogout }) => {
     const loadData = async () => {
         try {
             // Загружаем всё параллельно
-            const [taskData, employeeData, teamData, skillsData] = await Promise.all([
+            const [taskData, employeeData, teamData, skillsData, workersData] = await Promise.all([
                 getTasksApi(),
                 getEmployeesApi(),
                 getTeamsApi(),
-                getSkillsApi() 
+                getSkillsApi(),
+                getWorkersApi() 
             ]);
 
             setEmployees(employeeData);
             setTeams(teamData);
+            setWorkers(workersData);
             // Загружаем участников каждой команды
             const membersMap = {};
             for (const team of teamData) {
@@ -149,7 +154,7 @@ const AppLayout = ({ user, onLogout }) => {
                     ...task,
                     deadline: task.deadline.split('T')[0],
                     completed: task.status === 'done' || task.status === 'canceled',
-                    assignee_name: assignee ? assignee.name : (task.assignee_id ? 'Неизвестный' : null),
+                    assignee_name: task.assignee_name || null,
                     team_name: team ? team.name : null
                 };
             });
@@ -462,6 +467,7 @@ const AppLayout = ({ user, onLogout }) => {
                                 currentUser={userInfo}
                                 matrixView={matrixView} // Передаем режим просмотра
                                 tasks={tasks}
+                                workers={workers}
                             />
                         )}
                         {currentView === 'analytics' && (
@@ -546,6 +552,7 @@ const AppLayout = ({ user, onLogout }) => {
                     teams={teams}
                     allSkills={allSkills} 
                     tasks={tasks}
+                    workers={workers}
                     newTaskParentId={newTaskParentId}
                 />
             )}
@@ -556,7 +563,7 @@ const AppLayout = ({ user, onLogout }) => {
                         setEmployeesModalOpen(false);
                         setAddEmployeeModalOpen(true);
                     }}
-                    employees={employees}
+                    workers={workers}
                     canAdd={canAddTask}
                     currentUser={userInfo}
                     onDelete={handleDeleteEmployee} 
@@ -737,7 +744,7 @@ const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, onEditTask, onAddSu
 };
 
 // AddTaskModal
-const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkills, task, tasks, newTaskParentId }) => {
+const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkills, task, tasks, workers, newTaskParentId }) => {
     // Логика связанных списков
     const [selectedTeamId, setSelectedTeamId] = useState('');
     const [teamSpecificMembers, setTeamSpecificMembers] = useState(null);
@@ -961,16 +968,22 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
                         
                         <div className="form-group">
                             <label htmlFor="taskAssignee">Назначить сотруднику</label>
-                            <select id="taskAssignee" name="taskAssignee" defaultValue="" disabled={loadingMembers}>
+                            <select id="taskAssignee" name="taskAssignee" defaultValue={task?.assignee_worker_id || ''} disabled={loadingMembers}>
                                 <option value="">{loadingMembers ? "Загрузка..." : "Не назначен"}</option>
-                                {(!teamSpecificMembers || teamSpecificMembers.some(m => m.id.toString() === currentUser.id.toString())) && (
-                                   <option value={currentUser.id}>{currentUser.name || '...'} (себе)</option> 
-                                )}
-                                {filteredEmployees.filter(emp => emp.id.toString() !== currentUser.id.toString()).map(emp => (
-                                    <option key={emp.id} value={emp.id}>
-                                        {emp.name} - ({(emp.skills || []).map(s => s.skill_name).join(', ')})
-                                    </option>
-                                ))}
+                                {(() => {
+                                    const myWorker = workers.find(w => w.user_id && w.user_id.toString() === currentUser.id.toString());
+                                    return myWorker ? (
+                                        <option value={myWorker.id}>{currentUser.name} (себе)</option>
+                                    ) : null;
+                                })()}
+                                {workers
+                                    .filter(w => !w.user_id || w.user_id.toString() !== currentUser.id.toString())
+                                    .map(w => (
+                                        <option key={w.id} value={w.id}>
+                                            {w.name}{w.position ? ' — ' + w.position : ''}{!w.user_id ? ' (без учётки)' : ''}
+                                        </option>
+                                    ))
+                                }
                             </select>
                         </div>
                         <button type="submit" className="login-btn">Сохранить задачу</button>
@@ -982,7 +995,7 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
 };
 
 // EmployeesModal
-const EmployeesModal = ({ onClose, onShowAdd, employees, canAdd, currentUser, onDelete, canDelete }) => {
+const EmployeesModal = ({ onClose, onShowAdd, workers, canAdd, currentUser, onDelete, canDelete }) => {
     return (
         // Меняем onClick на onMouseDown
         <div className="modal" style={{ display: 'flex' }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -1000,12 +1013,16 @@ const EmployeesModal = ({ onClose, onShowAdd, employees, canAdd, currentUser, on
                 <div className="modal-body">
                     <div className="employees-content">
                         <div className="employees-grid">
-                            {employees.map(employee => (
+                            {workers.map(employee => (
                                 <div className="employee-card" key={employee.id}>
                                     <div className="employee-avatar">{employee.name.split(' ').map(n => n[0]).join('')}</div>
                                     <div className="employee-info">
                                         <div className="employee-name">{employee.name}</div>
-                                        <div className="employee-position">{employee.position}</div>
+                                        <div className="employee-position">
+                                            {employee.position}
+                                            {!employee.user_id && <span style={{color: '#999', marginLeft: '8px'}}>(без учётки)</span>}
+                                            {employee.role && <span style={{color: '#999', marginLeft: '8px'}}>— {employee.role}</span>}
+                                        </div>
                                         <div className="employee-skills">
                                             {/* Отображаем M2M навыки */}
                                             {(employee.skills || []).map(skill => (
@@ -1015,11 +1032,11 @@ const EmployeesModal = ({ onClose, onShowAdd, employees, canAdd, currentUser, on
                                             ))}
                                         </div>
                                     </div>
-                                    {/* Кнопка удаления */}
-                                    {canDelete && employee.id !== currentUser.id && employee.login !== 'admin' && (
+                                    {/* Кнопка удаления — только для сотрудников с учёткой */}
+                                    {canDelete && employee.user_id && employee.user_id !== currentUser.id && employee.login !== 'admin' && (
                                         <button 
                                             className="btn btn-danger btn-sm"
-                                            onClick={() => onDelete(employee.id, employee.name)}
+                                            onClick={() => onDelete(employee.user_id, employee.name)}
                                             title="Удалить сотрудника"
                                             style={{alignSelf: 'flex-start', padding: '5px 8px'}}
                                         >
@@ -1040,6 +1057,7 @@ const EmployeesModal = ({ onClose, onShowAdd, employees, canAdd, currentUser, on
 const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
     const [error, setError] = useState(null); // Ошибка API
     const [formErrors, setFormErrors] = useState({}); // Ошибки валидации полей
+    const [hasAccount, setHasAccount] = useState(true); // Создать с учётной записью?
     
     const [selectedSkills, setSelectedSkills] = useState(new Set());
     const [currentCategoryId, setCurrentCategoryId] = useState('');
@@ -1088,26 +1106,40 @@ const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
         const position = formData.get('employeePosition');
 
         if (!name.trim()) newErrors.employeeName = "Это обязательное поле. Необходимо заполнить";
-        if (!login.trim()) newErrors.employeeLogin = "Это обязательное поле. Необходимо заполнить";
-        if (!password) newErrors.employeePassword = "Это обязательное поле. Необходимо заполнить";
-        else if (password.length < 8) newErrors.employeePassword = "Пароль должен быть не менее 8 символов";
         if (!position.trim()) newErrors.employeePosition = "Это обязательное поле. Необходимо заполнить";
+
+        if (hasAccount) {
+            if (!login.trim()) newErrors.employeeLogin = "Это обязательное поле. Необходимо заполнить";
+            if (!password) newErrors.employeePassword = "Это обязательное поле. Необходимо заполнить";
+            else if (password.length < 8) newErrors.employeePassword = "Пароль должен быть не менее 8 символов";
+        }
 
         if (Object.keys(newErrors).length > 0) {
             setFormErrors(newErrors);
             return;
         }
 
-        const employeeData = {
-            name, login, password, position,
-            role: formData.get('employeeRole'),
-            skill_ids: Array.from(selectedSkills) 
-        };
-
         try {
-            await onSave(employeeData);
+            if (hasAccount) {
+                // С учётной записью → POST /api/users (создаёт user + worker)
+                const employeeData = {
+                    name, login, password, position,
+                    role: formData.get('employeeRole'),
+                    skill_ids: Array.from(selectedSkills) 
+                };
+                await onSave(employeeData);
+            } else {
+                // Без учётки → POST /api/workers (создаёт только worker)
+                await createWorkerApi({
+                    name, 
+                    position,
+                    skill_ids: Array.from(selectedSkills)
+                });
+                onClose();
+                window.location.reload();
+            }
         } catch (err) {
-            setError(err.error === 'Пользователь с таким логином уже существует' ? 'Логин уже занят.' : 'Ошибка сервера.');
+            setError(err.error === 'Пользователь с таким логином уже существует' ? 'Логин уже занят.' : (err.error || 'Ошибка сервера.'));
         }
     };
 
@@ -1121,6 +1153,17 @@ const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
                 
                 <div className="modal-body">
                     <form onSubmit={handleSubmit} noValidate>
+                        <div className="form-group" style={{ marginBottom: '16px' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                <input 
+                                    type="checkbox" 
+                                    checked={hasAccount} 
+                                    onChange={(e) => setHasAccount(e.target.checked)} 
+                                />
+                                Создать с учётной записью (логин и пароль)
+                            </label>
+                        </div>
+
                         <div className="form-group">
                             <label htmlFor="employeeName">Полное имя</label>
                             <input 
@@ -1132,6 +1175,8 @@ const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
                             {formErrors.employeeName && <span className="validation-error-text">{formErrors.employeeName}</span>}
                         </div>
 
+                        {hasAccount && (
+                            <>
                         <div className="form-group">
                             <label htmlFor="employeeLogin">Логин</label>
                             <input 
@@ -1153,6 +1198,8 @@ const AddEmployeeModal = ({ onClose, onSave, allSkills }) => {
                             />
                             {formErrors.employeePassword && <span className="validation-error-text">{formErrors.employeePassword}</span>}
                         </div>
+                            </>
+                        )}
 
                         <div className="form-group">
                             <label htmlFor="employeePosition">Должность</label>
