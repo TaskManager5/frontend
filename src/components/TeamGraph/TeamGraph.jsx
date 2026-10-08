@@ -15,7 +15,7 @@ import 'reactflow/dist/style.css';
 import { 
   getTeamsApi, 
   getTeamMembersApi, 
-  getEmployeesApi,
+  getWorkersApi,
   addTeamMemberApi,
   removeTeamMemberApi
 } from '../../api/api';
@@ -63,7 +63,7 @@ const nodeTypes = { employee: EmployeeNode };
 const TeamGraphContent = ({ currentUser }) => {
   const [teams, setTeams] = useState([]);
   const [selectedTeamId, setSelectedTeamId] = useState('');
-  const [allEmployees, setAllEmployees] = useState([]);
+  const [allWorkers, setAllWorkers] = useState([]);
   const [sidebarSearch, setSidebarSearch] = useState('');
   
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -78,10 +78,10 @@ const TeamGraphContent = ({ currentUser }) => {
       try {
         const [tData, eData] = await Promise.all([
             getTeamsApi(),
-            getEmployeesApi()
+            getWorkersApi()
         ]);
         setTeams(tData);
-        setAllEmployees(eData);
+        setAllWorkers(eData);
       } catch (err) {
         console.error("Ошибка загрузки данных:", err);
       }
@@ -135,7 +135,7 @@ const TeamGraphContent = ({ currentUser }) => {
                 };
             }
 
-            const fullEmployee = allEmployees.find(e => e.id === member.id);
+            const fullEmployee = allWorkers.find(e => e.id === member.id);
             const skillNames = fullEmployee?.skills?.map(s => s.skill_name) || [];
 
             return {
@@ -241,7 +241,7 @@ const TeamGraphContent = ({ currentUser }) => {
           await addTeamMemberApi(selectedTeamId, userId, 'member');
           
           // Обновляем граф, но НОВЫЙ узел ставим в позицию DROP, а не в круг          
-          const fullEmployee = allEmployees.find(e => e.id === userId);
+          const fullEmployee = allWorkers.find(e => e.id === userId);
           const newNode = {
               id: nodeId,
               type: 'employee',
@@ -264,7 +264,7 @@ const TeamGraphContent = ({ currentUser }) => {
           alert("Не удалось добавить сотрудника");
       }
     },
-    [selectedTeamId, nodes, reactFlowInstance, allEmployees]
+    [selectedTeamId, nodes, reactFlowInstance, allWorkers]
   );
 
   const onDragOver = useCallback((event) => {
@@ -274,14 +274,14 @@ const TeamGraphContent = ({ currentUser }) => {
 
   // Фильтр сотрудников
   const filteredEmployees = useMemo(() => {
-      if (!sidebarSearch) return allEmployees;
+      if (!sidebarSearch) return allWorkers;
       const lowerSearch = sidebarSearch.toLowerCase();
-      return allEmployees.filter(emp => {
+      return allWorkers.filter(emp => {
           const nameMatch = emp.name.toLowerCase().includes(lowerSearch);
           const skillMatch = emp.skills?.some(s => s.skill_name.toLowerCase().includes(lowerSearch));
           return nameMatch || skillMatch;
       });
-  }, [allEmployees, sidebarSearch]);
+  }, [allWorkers, sidebarSearch]);
 
   const onDragStart = (event, userId) => {
     event.dataTransfer.setData('application/reactflow', userId);

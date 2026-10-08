@@ -12,7 +12,7 @@ import CreateTeamModal from './CreateTeamModal';
 import TeamMembersModal from './TeamMembersModal';
 
 // Получаем tasks и employees из AppLayout
-const TeamsManagement = ({ currentUser, tasks, employees }) => {
+const TeamsManagement = ({ currentUser, tasks, workers }) => {
   const [teams, setTeams] = useState([]);
   // const [employees, setEmployees] = useState([]); 
   const [selectedTeam, setSelectedTeam] = useState(null);
@@ -24,10 +24,10 @@ const TeamsManagement = ({ currentUser, tasks, employees }) => {
   useEffect(() => {
     // loadEmployees(); 
     // Запускаем loadTeams, когда tasks или employees (из props) изменятся
-    if (tasks && employees) {
+    if (tasks && workers) {
       loadTeams();
     }
-  }, [tasks, employees]); // Добавляем зависимости
+  }, [tasks, workers]); // Добавляем зависимости
 
   const loadTeams = async () => {
   try {
@@ -46,7 +46,7 @@ const TeamsManagement = ({ currentUser, tasks, employees }) => {
           const managerNames = managers.map(manager => {
               const userId = manager.id || manager.user_id;
               // Ищем в props
-              const employee = employees.find(emp => emp.id === userId);
+              const employee = workers.find(w => w.id === userId);
               return employee ? employee.name : 'Неизвестный';
           });
 
@@ -308,7 +308,7 @@ const TeamsManagement = ({ currentUser, tasks, employees }) => {
         <TeamMembersModal
           team={selectedTeam}
           members={teamMembers}
-          employees={employees} // Передаем employees из props
+          workers={workers} // Передаем employees из props
           onClose={() => setMembersModalOpen(false)}
           onAddMember={handleAddMember}
           onRemoveMember={handleRemoveMember}

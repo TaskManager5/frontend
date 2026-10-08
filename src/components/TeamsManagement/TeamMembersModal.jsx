@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 
-const TeamMembersModal = ({ team, members, employees, onClose, onAddMember, onRemoveMember, currentUser }) => {
+const TeamMembersModal = ({ team, members, workers, onClose, onAddMember, onRemoveMember, currentUser }) => {
   const [newMemberId, setNewMemberId] = useState('');
   const [newMemberRole, setNewMemberRole] = useState('member');
 
-  const availableEmployees = employees.filter(emp => 
+  const availableEmployees = workers.filter(emp => 
     !members.some(member => member.id === emp.id) // member.id 
   );
 
@@ -30,11 +30,11 @@ const TeamMembersModal = ({ team, members, employees, onClose, onAddMember, onRe
 
   const getDisplayName = (member) => {
     const userId = getUserId(member);
-    const employee = employees.find(emp => emp.id === userId);
+    const worker = workers.find(w => w.id === userId);
     
-    if (employee) {
+    if (worker) {
       // Используем актуальное имя из 'employees'
-      return employee.name || `Сотрудник ${userId}`;
+      return worker.name || `Сотрудник ${userId}`;
     }
     
     // Fallback, если вдруг сотрудника нет в общем списке
@@ -47,11 +47,11 @@ const TeamMembersModal = ({ team, members, employees, onClose, onAddMember, onRe
 
   const getDisplayPosition = (member) => {
     const userId = getUserId(member);
-    const employee = employees.find(emp => emp.id === userId);
+    const worker = workers.find(w => w.id === userId);
     
-    if (!employee) return '';
+    if (!worker) return '';
     
-    return employee.position || '';
+    return worker.position || '';
   };
 
   // Функция для проверки можно ли удалить участника
@@ -63,8 +63,8 @@ const TeamMembersModal = ({ team, members, employees, onClose, onAddMember, onRe
     if (userId === currentUser.id) return false;
     
     // Нельзя удалить администратора (login === 'admin')
-    const employee = employees.find(emp => emp.id === userId);
-    if (employee && employee.login === 'admin') return false;
+    const worker = workers.find(w => w.id === userId);
+    if (worker && worker.login === 'admin') return false;
     
     return canManageTeam;
   };
@@ -133,7 +133,7 @@ const TeamMembersModal = ({ team, members, employees, onClose, onAddMember, onRe
                   const userId = getUserId(member);
                   const userRole = getUserRole(member);
                   const canRemove = canRemoveMember(member);
-                  const isAdmin = employees.find(emp => emp.id === userId)?.login === 'admin';
+                  const isAdmin = workers.find(w => w.id === userId)?.login === 'admin';
                   
                   return (
                     <div key={`${userId}-${index}`} className="member-item">

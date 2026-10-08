@@ -146,7 +146,6 @@ const AppLayout = ({ user, onLogout }) => {
 
             // Сопоставляем имя сотрудника с задачей
             const tasksWithNames = taskData.map(task => {
-                const assignee = employeeData.find(emp => emp.id === task.assignee_id);
                 // Ищем ИМЯ КОМАНДЫ
                 const team = teamData.find(t => t.id === task.team_id);
                 
@@ -481,7 +480,7 @@ const AppLayout = ({ user, onLogout }) => {
                             <TeamsManagement 
                                 currentUser={userInfo} 
                                 tasks={tasks}
-                                employees={employees}
+                                workers={workers}
                             />
                         )}
                         {/*Рендер Управления Навыками */}
@@ -612,13 +611,16 @@ const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, onEditTask, onAddSu
     const canDeleteTask = (task) => {
         if (!currentUser || !task) return false;
         const userId = currentUser.id.toString();
-        const createdBy = task.created_by ? task.created_by.toString() : null; 
-        const assignedTo = task.assignee_id ? task.assignee_id.toString() : null;
+        const createdBy = task.created_by ? task.created_by.toString() : null;
 
         if (currentUser.role === 'admin') return true;
         if (currentUser.role === 'manager' && createdBy === userId) return true;
-        if (currentUser.role === 'user' && (assignedTo === userId || createdBy === userId)) {
-            return true;
+
+        if (currentUser.role === 'user') {
+            const myWorker = workers.find(w => w.user_id && w.user_id.toString() === userId);
+            const assignedTo = task.assignee_worker_id ? task.assignee_worker_id.toString() : null;
+            if (assignedTo && myWorker && assignedTo === myWorker.id.toString()) return true;
+            if (createdBy === userId) return true;
         }
         return false;
     };

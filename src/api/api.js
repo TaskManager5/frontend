@@ -138,11 +138,11 @@ export const createTeamApi = (teamData) => apiFetch('/teams', {
 export const getTeamMembersApi = (teamId) => apiFetch(`/teams/${teamId}/members`);
 
 // Основная функция добавления участника 
-export const addTeamMemberApi = (teamId, userId, roleInTeam) => {
-  console.log('API: Добавление участника', { teamId, userId, roleInTeam });
+export const addTeamMemberApi = (teamId, workerId, roleInTeam) => {
+  console.log('API: Добавление участника', { teamId, workerId, roleInTeam });
   
   const payload = {
-    userId: userId.toString(),
+    workerId: workerId.toString(),
     roleInTeam: roleInTeam
   };
   
@@ -152,9 +152,9 @@ export const addTeamMemberApi = (teamId, userId, roleInTeam) => {
   });
 };
 
-export const removeTeamMemberApi = (teamId, userId) => {
-  console.log('API: Удаление участника', { teamId, userId });
-  return apiFetch(`/teams/${teamId}/members/${userId}`, {
+export const removeTeamMemberApi = (teamId, workerId) => {
+  console.log('API: Удаление участника', { teamId, workerId });
+  return apiFetch(`/teams/${teamId}/members/${workerId}`, {
     method: 'DELETE'
   });
 };
@@ -194,9 +194,9 @@ export const deleteTeamExperimental = async (teamId) => {
 };
 
 // Функция обновления участника команды
-export const updateTeamMemberApi = (teamId, userId, roleInTeam) => {
-  console.log('API: Обновление участника', { teamId, userId, roleInTeam });
-  return apiFetch(`/teams/${teamId}/members/${userId}`, {
+export const updateTeamMemberApi = (teamId, workerId, roleInTeam) => {
+  console.log('API: Обновление участника', { teamId, workerId, roleInTeam });
+  return apiFetch(`/teams/${teamId}/members/${workerId}`, {
     method: 'PATCH',
     body: JSON.stringify({ roleinteam: roleInTeam })
   });
