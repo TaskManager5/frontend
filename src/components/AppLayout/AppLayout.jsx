@@ -7,6 +7,7 @@ import {
     deleteTaskApi, 
     getEmployeesApi,
     getWorkersApi,
+    getProjectsApi,
     createWorkerApi, 
     createEmployeeApi,
     getTeamsApi,
@@ -20,6 +21,7 @@ import TeamsManagement from '../TeamsManagement/TeamsManagement';
 import SkillsManagement from '../SkillsManagement/SkillsManagement'; 
 import TeamGraph from '../TeamGraph/TeamGraph'; 
 import SkillGraph from '../TeamGraph/SkillGraph';
+import Projects from '../Projects/Projects';
 
 // Импорты для графиков
 import { Doughnut, Pie, Bar } from 'react-chartjs-2';
@@ -86,6 +88,11 @@ const AppLayout = ({ user, onLogout }) => {
     const [allSkills, setAllSkills] = useState([]);
     const [currentFilter, setCurrentFilter] = useState('all');
     const [currentView, setCurrentView] = useState('tasks');
+    const [projects, setProjects] = useState([]);
+    const [activeProjectId, setActiveProjectId] = useState(() => {
+        const saved = localStorage.getItem('activeProjectId');
+        return saved ? Number(saved) : null;
+    });
     const [searchTerm, setSearchTerm] = useState('');
     const [loadingContent, setLoadingContent] = useState(true);
 
@@ -119,18 +126,21 @@ const AppLayout = ({ user, onLogout }) => {
     // Функция загрузки
     const loadData = async () => {
         try {
-            // Загружаем всё параллельно
-            const [taskData, employeeData, teamData, skillsData, workersData] = await Promise.all([
-                getTasksApi(),
+            // Загружаем всё параллельно (с учётом активного проекта)
+            const projectParams = activeProjectId ? { projectId: activeProjectId } : {};
+            const [taskData, employeeData, teamData, skillsData, workersData, projectsData] = await Promise.all([
+                getTasksApi(projectParams),
                 getEmployeesApi(),
-                getTeamsApi(),
+                getTeamsApi(projectParams),
                 getSkillsApi(),
-                getWorkersApi() 
+                getWorkersApi(),
+                getProjectsApi()
             ]);
 
             setEmployees(employeeData);
             setTeams(teamData);
             setWorkers(workersData);
+            setProjects(projectsData);
             // Загружаем участников каждой команды
             const membersMap = {};
             for (const team of teamData) {
@@ -178,15 +188,15 @@ const AppLayout = ({ user, onLogout }) => {
         }
     };
 
-    // Загрузка всех данных при старте
+    // Загрузка всех данных при старте и при смене активного проекта
     useEffect(() => {
         const loadAllData = async () => {
             setLoadingContent(true);
-            await loadData(); // Вызываем новую функцию
+            await loadData();
             setLoadingContent(false);
         };
         loadAllData();
-    }, []); // Запускается один раз при входе
+    }, [activeProjectId]);
     
     // Логика задач (Фильтрация)
     const filteredTasks = useMemo(() => {
@@ -339,6 +349,16 @@ const AppLayout = ({ user, onLogout }) => {
         return employees.find(emp => emp.id.toString() === userInfo.id.toString()) || {};
     }, [employees, userInfo]);
 
+    // Выбор активного проекта (сохраняется в localStorage)
+    const handleSelectProject = (projectId) => {
+        setActiveProjectId(projectId);
+        if (projectId) {
+            localStorage.setItem('activeProjectId', String(projectId));
+        } else {
+            localStorage.removeItem('activeProjectId');
+        }
+    };
+
 
     if (loadingContent) {
         return <div className="app-container" style={{display: 'flex', justifyContent: 'center', alignItems: 'center'}}>Загрузка...</div>;
@@ -373,6 +393,9 @@ const AppLayout = ({ user, onLogout }) => {
                             <i className="fas fa-chart-pie"></i><span>Аналитика</span>
                         </li>
                     )}
+                    <li className={`menu-item ${currentView === 'projects' ? 'active' : ''}`} onClick={() => setCurrentView('projects')}>
+                        <i className="fas fa-folder-open"></i><span>Проекты</span>
+                    </li>
                     <li className={`menu-item ${currentView === 'teams' ? 'active' : ''}`} onClick={() => setCurrentView('teams')}>
                         <i className="fas fa-users"></i><span>Команды</span>
                     </li>
@@ -406,19 +429,44 @@ const AppLayout = ({ user, onLogout }) => {
                         <div className="page-title" id="pageTitle">
                             {currentView === 'tasks' ? 'Матрица Эйзенхауэра' : 
                              currentView === 'analytics' ? 'Аналитика' : 
+                             currentView === 'projects' ? 'Проекты' :
                              currentView === 'teams' ? 'Управление командами' : 
                              currentView === 'skills' ? 'Управление навыками' :
                              currentView === 'graph' ? 'Схема проекта' : 
                              currentView === 'skillGraph' ? 'Граф пересечения навыков' : ''}
                         </div>
-                        <div className="search-box">
-                            <i className="fas fa-search"></i>
-                            <input 
-                                type="text" 
-                                placeholder="Поиск задач..." 
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <i className="fas fa-folder-open" style={{ color: '#2563eb' }}></i>
+                                <select
+                                    value={activeProjectId || ''}
+                                    onChange={(e) => handleSelectProject(e.target.value ? Number(e.target.value) : null)}
+                                    style={{
+                                        padding: '6px 10px',
+                                        borderRadius: 6,
+                                        border: '1px solid #ddd',
+                                        background: '#fff',
+                                        fontSize: 14,
+                                        minWidth: 180,
+                                        cursor: 'pointer'
+                                    }}
+                                    title="Активный проект"
+                                >
+                                    <option value="">— Все проекты —</option>
+                                    {projects.map((p) => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="search-box">
+                                <i className="fas fa-search"></i>
+                                <input 
+                                    type="text" 
+                                    placeholder="Поиск задач..." 
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
                         </div>
                     </div>
                     
@@ -481,6 +529,16 @@ const AppLayout = ({ user, onLogout }) => {
                                 currentUser={userInfo} 
                                 tasks={tasks}
                                 workers={workers}
+                                activeProjectId={activeProjectId}
+                            />
+                        )}
+                        {/*Рендер Проектов */}
+                        {currentView === 'projects' && (
+                            <Projects 
+                                currentUser={userInfo}
+                                workers={workers}
+                                activeProjectId={activeProjectId}
+                                onSelectProject={handleSelectProject}
                             />
                         )}
                         {/*Рендер Управления Навыками */}
@@ -494,6 +552,7 @@ const AppLayout = ({ user, onLogout }) => {
                         {currentView === 'graph' && (
                             <TeamGraph 
                                 currentUser={userInfo}
+                                activeProjectId={activeProjectId}
                             />
                         )}
                         {/*Рендер SkillGraph */}

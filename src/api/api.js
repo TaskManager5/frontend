@@ -96,7 +96,17 @@ export async function logoutApi(jti) {
 }
 
 // API Задач 
-export const getTasksApi = () => apiFetch('/tasks');
+export const getTasksApi = (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.projectId) query.set('projectId', params.projectId);
+  if (params.status) query.set('status', params.status);
+  if (params.assigneeId) query.set('assigneeId', params.assigneeId);
+  if (params.teamId) query.set('teamId', params.teamId);
+  if (params.q) query.set('q', params.q);
+  if (params.limit) query.set('limit', params.limit);
+  const qs = query.toString();
+  return apiFetch('/tasks' + (qs ? '?' + qs : ''));
+};
 export const createTaskApi = (taskData) => apiFetch('/tasks', { method: 'POST', body: JSON.stringify(taskData) });
 export const updateTaskApi = (id, taskData) => apiFetch(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(taskData) });
 export const deleteTaskApi = (id) => apiFetch(`/tasks/${id}`, { method: 'DELETE' });
@@ -130,7 +140,12 @@ export const deleteSkillCategoryApi = (id) => apiFetch(`/skills/categories/${id}
 
 
 // Teams API 
-export const getTeamsApi = () => apiFetch('/teams');
+export const getTeamsApi = (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.projectId) query.set('projectId', params.projectId);
+  const qs = query.toString();
+  return apiFetch('/teams' + (qs ? '?' + qs : ''));
+};
 export const createTeamApi = (teamData) => apiFetch('/teams', { 
   method: 'POST', 
   body: JSON.stringify(teamData) 
@@ -215,3 +230,50 @@ export const updateTeamApi = (teamId, teamData) => {
     body: JSON.stringify(teamData)
   });
 };
+
+
+// ============ PROJECTS ============
+export const getProjectsApi = () => apiFetch('/projects');
+
+export const getProjectApi = (projectId) => apiFetch(`/projects/${projectId}`);
+
+export const createProjectApi = (projectData) => {
+  console.log('API: Создание проекта', projectData);
+  return apiFetch('/projects', {
+    method: 'POST',
+    body: JSON.stringify(projectData)
+  });
+};
+
+export const updateProjectApi = (projectId, projectData) => {
+  console.log('API: Обновление проекта', { projectId, projectData });
+  return apiFetch(`/projects/${projectId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(projectData)
+  });
+};
+
+export const deleteProjectApi = (projectId) =>
+  apiFetch(`/projects/${projectId}`, { method: 'DELETE' });
+
+export const getProjectMembersApi = (projectId) =>
+  apiFetch(`/projects/${projectId}/members`);
+
+export const addProjectMemberApi = (projectId, workerId, role) => {
+  console.log('API: Добавление участника проекта', { projectId, workerId, role });
+  return apiFetch(`/projects/${projectId}/members`, {
+    method: 'POST',
+    body: JSON.stringify({ workerId, role })
+  });
+};
+
+export const updateProjectMemberApi = (projectId, workerId, role) => {
+  console.log('API: Обновление роли участника проекта', { projectId, workerId, role });
+  return apiFetch(`/projects/${projectId}/members`, {
+    method: 'POST',
+    body: JSON.stringify({ workerId, role })
+  });
+};
+
+export const removeProjectMemberApi = (projectId, workerId) =>
+  apiFetch(`/projects/${projectId}/members/${workerId}`, { method: 'DELETE' });

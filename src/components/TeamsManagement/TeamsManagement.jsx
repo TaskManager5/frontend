@@ -12,7 +12,7 @@ import CreateTeamModal from './CreateTeamModal';
 import TeamMembersModal from './TeamMembersModal';
 
 // Получаем tasks и employees из AppLayout
-const TeamsManagement = ({ currentUser, tasks, workers }) => {
+const TeamsManagement = ({ currentUser, tasks, workers, activeProjectId }) => {
   const [teams, setTeams] = useState([]);
   // const [employees, setEmployees] = useState([]); 
   const [selectedTeam, setSelectedTeam] = useState(null);
@@ -22,17 +22,16 @@ const TeamsManagement = ({ currentUser, tasks, workers }) => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // loadEmployees(); 
-    // Запускаем loadTeams, когда tasks или employees (из props) изменятся
     if (tasks && workers) {
       loadTeams();
     }
-  }, [tasks, workers]); // Добавляем зависимости
+  }, [tasks, workers, activeProjectId]);
 
   const loadTeams = async () => {
   try {
     setLoading(true);
-    const data = await getTeamsApi();
+    const params = activeProjectId ? { projectId: activeProjectId } : {};
+    const data = await getTeamsApi(params);
     
     const teamsWithData = await Promise.all(
       data.map(async (team) => {

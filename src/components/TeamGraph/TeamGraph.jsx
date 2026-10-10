@@ -60,7 +60,7 @@ const EmployeeNode = ({ data }) => {
 const nodeTypes = { employee: EmployeeNode };
 
 //Основной компонент контента (внутри Provider)
-const TeamGraphContent = ({ currentUser }) => {
+const TeamGraphContent = ({ currentUser, activeProjectId }) => {
   const [teams, setTeams] = useState([]);
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [allWorkers, setAllWorkers] = useState([]);
@@ -76,8 +76,9 @@ const TeamGraphContent = ({ currentUser }) => {
   useEffect(() => {
     const init = async () => {
       try {
+        const params = activeProjectId ? { projectId: activeProjectId } : {};
         const [tData, eData] = await Promise.all([
-            getTeamsApi(),
+            getTeamsApi(params),
             getWorkersApi()
         ]);
         setTeams(tData);
@@ -87,7 +88,7 @@ const TeamGraphContent = ({ currentUser }) => {
       }
     };
     init();
-  }, []);
+  }, [activeProjectId]);
 
   // Загрузка графа при смене команды
   useEffect(() => {
