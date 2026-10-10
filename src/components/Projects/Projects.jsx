@@ -79,7 +79,22 @@ const ProjectFormModal = ({ project, workers, onClose, onSave }) => {
                         )}
                         {error && <div style={{ color: 'red', marginBottom: 8 }}>{error}</div>}
                         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                            <button type="button" className="btn-secondary" onClick={onClose}>Отмена</button>
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                style={{
+                                    padding: '8px 20px',
+                                    background: '#e5e7eb',
+                                    color: '#333',
+                                    border: 'none',
+                                    borderRadius: 6,
+                                    cursor: 'pointer',
+                                    fontSize: 14,
+                                    fontWeight: 500
+                                }}
+                            >
+                                Отмена
+                            </button>
                             <button type="submit" className="login-btn" style={{ width: 'auto', padding: '8px 20px' }}>
                                 {isEdit ? 'Сохранить' : 'Создать'}
                             </button>
