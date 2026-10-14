@@ -7,6 +7,10 @@ import {
     getProjectMembersApi,
     addProjectMemberApi,
     removeProjectMemberApi,
+    getProjectTeamsApi,
+    getTeamsApi,
+    addTeamToProjectApi,
+    removeTeamFromProjectApi,
 } from '../../api/api';
 
 // ==================== Модалка создания/редактирования ====================
@@ -225,12 +229,131 @@ const ProjectMembersModal = ({ project, workers, currentUser, onClose }) => {
 };
 
 // ==================== Главный компонент ====================
+// ==================== Модалка «Команды проекта» ====================
+const ProjectTeamsModal = ({ project, currentUser, onClose }) => {
+    const [projectTeams, setProjectTeams] = useState([]);
+    const [allTeams, setAllTeams] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedTeamId, setSelectedTeamId] = useState('');
+    const [error, setError] = useState(null);
+
+    const load = async () => {
+        try {
+            setLoading(true);
+            const [inProject, all] = await Promise.all([
+                getProjectTeamsApi(project.id),
+                getTeamsApi()
+            ]);
+            setProjectTeams(inProject);
+            setAllTeams(all);
+        } catch (err) {
+            setError(err.error || 'Ошибка загрузки');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { load(); }, [project.id]);
+
+    const handleAdd = async () => {
+        if (!selectedTeamId) return;
+        setError(null);
+        try {
+            await addTeamToProjectApi(Number(selectedTeamId), project.id);
+            setSelectedTeamId('');
+            await load();
+        } catch (err) {
+            setError(err.error || 'Ошибка привязки');
+        }
+    };
+
+    const handleRemove = async (teamId, name) => {
+        if (!window.confirm(`Отвязать команду "${name}" от проекта?`)) return;
+        setError(null);
+        try {
+            await removeTeamFromProjectApi(teamId, project.id);
+            await load();
+        } catch (err) {
+            setError(err.error || 'Ошибка отвязки');
+        }
+    };
+
+    const linkedIds = new Set(projectTeams.map((t) => String(t.id)));
+    const available = allTeams.filter((t) => !linkedIds.has(String(t.id)));
+
+    return (
+        <div className="modal" style={{ display: 'flex' }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+            <div className="modal-content" style={{ maxWidth: 640 }}>
+                <div className="modal-header">
+                    <div className="modal-title">Команды проекта: {project.name}</div>
+                    <div className="close-modal" onClick={onClose}>&times;</div>
+                </div>
+                <div className="modal-body">
+                    <div style={{ marginBottom: 16, padding: 12, background: '#f5f5f5', borderRadius: 6 }}>
+                        <div style={{ fontWeight: 600, marginBottom: 8 }}>Привязать команду</div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            <select
+                                value={selectedTeamId}
+                                onChange={(e) => setSelectedTeamId(e.target.value)}
+                                style={{ flex: '1 1 200px' }}
+                            >
+                                <option value="">— Выберите команду —</option>
+                                {available.map((t) => (
+                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                ))}
+                            </select>
+                            <button
+                                className="login-btn"
+                                style={{ width: 'auto', padding: '8px 16px' }}
+                                onClick={handleAdd}
+                                disabled={!selectedTeamId}
+                            >
+                                Привязать
+                            </button>
+                        </div>
+                    </div>
+
+                    {error && <div style={{ color: 'red', marginBottom: 8 }}>{error}</div>}
+
+                    <div style={{ fontWeight: 600, marginBottom: 8 }}>Команды в проекте ({projectTeams.length}):</div>
+                    {loading ? (
+                        <div>Загрузка...</div>
+                    ) : projectTeams.length === 0 ? (
+                        <div style={{ color: '#888' }}>Нет привязанных команд</div>
+                    ) : (
+                        <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+                            {projectTeams.map((t) => (
+                                <div key={t.id} style={{
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                    padding: 10, borderBottom: '1px solid #eee'
+                                }}>
+                                    <div style={{ fontWeight: 600 }}>{t.name}</div>
+                                    {['admin', 'manager'].includes(currentUser?.role) && (
+                                        <button
+                                            className="delete-btn"
+                                            style={{ padding: '6px 12px' }}
+                                            onClick={() => handleRemove(t.id, t.name)}
+                                        >
+                                            Отвязать
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export default function Projects({ currentUser, workers, activeProjectId, onSelectProject }) {
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isFormOpen, setFormOpen] = useState(false);
     const [editingProject, setEditingProject] = useState(null);
+    const [teamsProject, setTeamsProject] = useState(null);
     const [membersProject, setMembersProject] = useState(null);
 
     const load = async () => {
@@ -248,6 +371,7 @@ export default function Projects({ currentUser, workers, activeProjectId, onSele
     useEffect(() => { load(); }, []);
 
     const isAdmin = currentUser?.role === 'admin';
+    const canCreateProject = ['admin', 'manager'].includes(currentUser?.role);
 
     const handleCreate = async (payload) => {
         await createProjectApi(payload);
@@ -275,7 +399,7 @@ export default function Projects({ currentUser, workers, activeProjectId, onSele
         <div style={{ padding: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <h2 style={{ margin: 0 }}>Проекты ({projects.length})</h2>
-                {isAdmin && (
+                {canCreateProject && (
                     <button className="login-btn" style={{ width: 'auto', padding: '10px 20px' }} onClick={() => { setEditingProject(null); setFormOpen(true); }}>
                         + Создать проект
                     </button>
@@ -316,6 +440,9 @@ export default function Projects({ currentUser, workers, activeProjectId, onSele
                                     <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => setMembersProject(p)}>
                                         Участники
                                     </button>
+                                    <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => setTeamsProject(p)}>
+                                        Команды
+                                    </button>
                                     {(isAdmin || p.my_role === 'owner') && (
                                         <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => { setEditingProject(p); setFormOpen(true); }}>
                                             Изменить
@@ -348,6 +475,14 @@ export default function Projects({ currentUser, workers, activeProjectId, onSele
                     workers={workers}
                     currentUser={currentUser}
                     onClose={() => setMembersProject(null)}
+                />
+            )}
+
+            {teamsProject && (
+                <ProjectTeamsModal
+                    project={teamsProject}
+                    currentUser={currentUser}
+                    onClose={() => setTeamsProject(null)}
                 />
             )}
         </div>

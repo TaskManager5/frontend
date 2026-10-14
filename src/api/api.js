@@ -277,3 +277,19 @@ export const updateProjectMemberApi = (projectId, workerId, role) => {
 
 export const removeProjectMemberApi = (projectId, workerId) =>
   apiFetch(`/projects/${projectId}/members/${workerId}`, { method: 'DELETE' });
+
+// ============ PROJECT ↔ TEAM (M:N) ============
+export const getProjectTeamsApi = (projectId) => apiFetch(`/projects/${projectId}/teams`);
+
+export const getTeamProjectsApi = (teamId) => apiFetch(`/teams/${teamId}/projects`);
+
+export const addTeamToProjectApi = (teamId, projectId) => {
+  console.log('API: Привязка команды к проекту', { teamId, projectId });
+  return apiFetch(`/teams/${teamId}/projects`, {
+    method: 'POST',
+    body: JSON.stringify({ projectId })
+  });
+};
+
+export const removeTeamFromProjectApi = (teamId, projectId) =>
+  apiFetch(`/teams/${teamId}/projects/${projectId}`, { method: 'DELETE' });

@@ -8,8 +8,11 @@ const TeamMembersModal = ({ team, members, workers, onClose, onAddMember, onRemo
     !members.some(member => member.id === emp.id) // member.id 
   );
 
-  const canManageTeam = currentUser.role === 'admin' || 
-    members.some(m => m.id === currentUser.id && m.roleinteam === 'manager'); // roleinteam
+  // Manager системы и админ могут управлять любой командой.
+  // Плюс: manager конкретной команды (если worker текущего user'а в members с role_in_team='manager').
+  const myWorker = workers.find(w => w.user_id && String(w.user_id) === String(currentUser.id));
+  const canManageTeam = ['admin', 'manager'].includes(currentUser.role) || 
+    members.some(m => String(m.id) === String(myWorker?.id) && (m.roleinteam === 'manager' || m.role_in_team === 'manager'));
 
   const handleAddMember = () => {
     if (newMemberId && canManageTeam) {

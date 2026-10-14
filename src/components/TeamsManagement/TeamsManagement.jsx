@@ -108,7 +108,7 @@ const TeamsManagement = ({ currentUser, tasks, workers, activeProjectId }) => {
 
   const handleCreateTeam = async (teamName) => {
     try {
-      await createTeamApi({ name: teamName });
+      await createTeamApi({ name: teamName, projectId: activeProjectId || undefined });
       await loadTeams();
       setCreateModalOpen(false);
     } catch (err) {
@@ -195,9 +195,8 @@ const TeamsManagement = ({ currentUser, tasks, workers, activeProjectId }) => {
     <div className="teams-management">
       <div className="top-bar">
         <div className="page-title">Управление командами</div>
-        {currentUser.role === 'admin' && (
+        {['admin', 'manager'].includes(currentUser.role) && (
           <button 
-            // Используем классы .action-button .btn-primary для починки
             className="action-button btn-primary"
             onClick={() => setCreateModalOpen(true)}
           >
@@ -218,7 +217,7 @@ const TeamsManagement = ({ currentUser, tasks, workers, activeProjectId }) => {
                 <i className="fas fa-users fa-3x"></i>
               </div>
               <p>Команды еще не созданы</p>
-              {currentUser.role === 'admin' && (
+              {['admin', 'manager'].includes(currentUser.role) && (
                 <button 
                   className="action-button btn-primary"
                   onClick={() => setCreateModalOpen(true)}
@@ -272,7 +271,7 @@ const TeamsManagement = ({ currentUser, tasks, workers, activeProjectId }) => {
                 </div>
                 
                 <div className="team-actions">
-                  {currentUser.role === 'admin' && (
+                  {['admin', 'manager'].includes(currentUser.role) && (
                     <button 
                       className="btn btn-danger btn-small"
                       onClick={() => handleDeleteTeam(team.id, team.name)}
