@@ -8,11 +8,13 @@ const TeamMembersModal = ({ team, members, workers, onClose, onAddMember, onRemo
     !members.some(member => member.id === emp.id) // member.id 
   );
 
-  // Manager системы и админ могут управлять любой командой.
-  // Плюс: manager конкретной команды (если worker текущего user'а в members с role_in_team='manager').
+  // Управлять командой может: admin, или manager ЭТОЙ команды
   const myWorker = workers.find(w => w.user_id && String(w.user_id) === String(currentUser.id));
-  const canManageTeam = ['admin', 'manager'].includes(currentUser.role) || 
-    members.some(m => String(m.id) === String(myWorker?.id) && (m.roleinteam === 'manager' || m.role_in_team === 'manager'));
+  const isManagerOfThisTeam = members.some(m => 
+    String(m.id) === String(myWorker?.id) && 
+    (m.roleInTeam === 'manager' || m.roleinteam === 'manager' || m.role_in_team === 'manager')
+  );
+  const canManageTeam = currentUser.role === 'admin' || isManagerOfThisTeam;
 
   const handleAddMember = () => {
     if (newMemberId && canManageTeam) {
@@ -28,7 +30,7 @@ const TeamMembersModal = ({ team, members, workers, onClose, onAddMember, onRemo
   };
 
   const getUserRole = (member) => {
-    return member.roleinteam || member.role_in_team; // roleinteam
+    return member.roleInTeam || member.roleinteam || member.role_in_team || 'member';
   };
 
   const getDisplayName = (member) => {

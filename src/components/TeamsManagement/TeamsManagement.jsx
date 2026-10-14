@@ -68,12 +68,20 @@ const TeamsManagement = ({ currentUser, tasks, workers, activeProjectId }) => {
             }
           }
 
+          // Определяем, является ли текущий user manager'ом этой команды
+          const myWorker = workers.find(w => w.user_id && String(w.user_id) === String(currentUser.id));
+          const isMyTeam = members.some(m => 
+            String(m.id) === String(myWorker?.id) && 
+            (m.roleinteam === 'manager' || m.roleInTeam === 'manager')
+          );
+
           return {
             ...team,
             memberCount: members.length,
             managers: managerNames,
             formattedDate: formattedDate,
-            activeTaskCount: activeTaskCount // Добавляем счетчик задач
+            activeTaskCount: activeTaskCount,
+            isMyTeam: isMyTeam
           };
         } catch (err) {
           console.error(`Ошибка загрузки участников для команды ${team.id}:`, err);
@@ -271,7 +279,7 @@ const TeamsManagement = ({ currentUser, tasks, workers, activeProjectId }) => {
                 </div>
                 
                 <div className="team-actions">
-                  {['admin', 'manager'].includes(currentUser.role) && (
+                  {(currentUser.role === 'admin' || team.isMyTeam) && (
                     <button 
                       className="btn btn-danger btn-small"
                       onClick={() => handleDeleteTeam(team.id, team.name)}
