@@ -90,15 +90,115 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
     init();
   }, [activeProjectId]);
 
-  // Загрузка графа при смене команды
+  // Загрузка графа при смене команды или проекта
   useEffect(() => {
     if (!selectedTeamId) {
-        setNodes([]);
-        setEdges([]);
-        return;
+        loadAllTeamsGraph();
+    } else {
+        loadGraphData(selectedTeamId);
     }
-    loadGraphData(selectedTeamId);
-  }, [selectedTeamId]);
+  }, [selectedTeamId, teams, allWorkers]);
+
+  // Функция построения графа со ВСЕМИ командами активного проекта
+  const loadAllTeamsGraph = async () => {
+    if (!teams || teams.length === 0) {
+      setNodes([]);
+      setEdges([]);
+      return;
+    }
+
+    try {
+      // Загружаем участников всех команд параллельно
+      const teamsWithMembers = await Promise.all(
+        teams.map(async (team) => {
+          try {
+            const members = await getTeamMembersApi(team.id);
+            return { team, members };
+          } catch (err) {
+            return { team, members: [] };
+          }
+        })
+      );
+
+      setNodes((currentNodes) => {
+        const newNodes = [];
+        const newEdges = [];
+
+        teamsWithMembers.forEach(({ team, members }, teamIndex) => {
+          // Центральный узел команды — в колонке (teamIndex)
+          const colX = teamIndex * 450;
+          const centerId = `team-${team.id}`;
+
+          newNodes.push({
+            id: centerId,
+            type: 'input',
+            data: { label: team.name },
+            position: { x: colX + 200, y: 50 },
+            className: 'center-node',
+          });
+
+          // Узлы сотрудников — вертикально под командой
+          members.forEach((member, memberIndex) => {
+            const nodeId = `emp-${member.id}`;
+            const existingNode = currentNodes.find(n => n.id === nodeId);
+
+            const position = existingNode ? existingNode.position : {
+              x: colX,
+              y: 200 + memberIndex * 160,
+            };
+
+            const fullEmployee = allWorkers.find(e => String(e.id) === String(member.id));
+            const skillNames = fullEmployee?.skills?.map(s => s.skill_name) || [];
+
+            newNodes.push({
+              id: nodeId,
+              type: 'employee',
+              position: position,
+              data: {
+                label: fullEmployee?.name || member.name || member.login || `Сотрудник ${member.id}`,
+                userId: member.id,
+                skills: skillNames,
+                onRemove: null, // без команды нельзя удалить
+              },
+            });
+
+            // Связь команда → участник
+            newEdges.push({
+              id: `e-team-${team.id}-${member.id}`,
+              source: centerId,
+              target: nodeId,
+              type: 'default',
+              animated: true,
+              style: { stroke: '#2563eb', strokeWidth: 2 },
+            });
+          });
+        });
+
+        return newNodes;
+      });
+
+      setEdges((currentEdges) => {
+        // Пересобираем edges
+        const newEdges = [];
+        teamsWithMembers.forEach(({ team, members }) => {
+          members.forEach((member) => {
+            newEdges.push({
+              id: `e-team-${team.id}-${member.id}`,
+              source: `team-${team.id}`,
+              target: `emp-${member.id}`,
+              type: 'default',
+              animated: true,
+              style: { stroke: '#2563eb', strokeWidth: 2 },
+            });
+          });
+        });
+        return newEdges;
+      });
+
+    } catch (err) {
+      console.error('Ошибка построения общего графа:', err);
+    }
+  };
 
   // Функция построения графа 
   const loadGraphData = async (teamId) => {
@@ -196,16 +296,6 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
   const onConnect = useCallback((params) => {
       // Разрешаем соединять сотрудников
       setEdges((eds) => addEdge({ ...params, animated: true, style: { stroke: '#64748b' } }, eds));
-  }, [setEdges]);
-
-  // Удаление связи по клику
-  const onEdgeClick = useCallback((event, edge) => {
-      // Запрещаем удалять связи с центром (они системные)
-      if (edge.source === 'team-center') return;
-
-      if (window.confirm('Удалить эту связь?')) {
-          setEdges((eds) => eds.filter((e) => e.id !== edge.id));
-      }
   }, [setEdges]);
 
   // Перетаскивание из сайдбара (Drop)
@@ -308,18 +398,23 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
             </select>
         </div>
 
-        {selectedTeamId ? (
+        {(selectedTeamId || teams.length > 0) ? (
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
-                onConnect={onConnect} // Связывание
-                onEdgeClick={onEdgeClick} // Удаление связей
+                onConnect={onConnect}
                 nodeTypes={nodeTypes}
                 onDragOver={onDragOver}
                 onDrop={onDrop}
                 fitView
+                zoomOnScroll={true}
+                zoomOnPinch={true}
+                panOnScroll={false}
+                minZoom={0.2}
+                maxZoom={2}
+                defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
             >
                 <Background color="#aaa" gap={16} />
                 <Controls />
