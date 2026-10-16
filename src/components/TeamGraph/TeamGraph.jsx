@@ -71,6 +71,7 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
   const [hiddenWorkerIds, setHiddenWorkerIds] = useState(new Set()); // скрытые сотрудники (фильтр)
   const [showFilters, setShowFilters] = useState(true);
   const [selectedNodeIds, setSelectedNodeIds] = useState(new Set());
+  const [bulkTeamId, setBulkTeamId] = useState('');
   
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -416,7 +417,49 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
   // Очистить выделение
   const clearSelection = useCallback(() => {
     setSelectedNodeIds(new Set());
+    setBulkTeamId('');
   }, []);
+
+  // Массовое добавление выделенных сотрудников в команду
+  const handleBulkAddToTeam = useCallback(async () => {
+    if (!bulkTeamId || selectedNodeIds.size === 0) return;
+
+    // Только сотрудники (emp-*)
+    const workerIds = Array.from(selectedNodeIds)
+      .filter(id => id.startsWith('emp-'))
+      .map(id => parseInt(id.replace('emp-', ''), 10));
+
+    if (workerIds.length === 0) {
+      alert('Выделите хотя бы одного сотрудника');
+      return;
+    }
+
+    if (!window.confirm(`Добавить ${workerIds.length} сотрудник(ов) в команду?`)) return;
+
+    let added = 0;
+    let skipped = 0;
+    try {
+      for (const wid of workerIds) {
+        try {
+          await addTeamMemberApi(parseInt(bulkTeamId, 10), wid, 'member');
+          added++;
+        } catch (err) {
+          // Скорее всего, уже в команде
+          skipped++;
+        }
+      }
+      alert(`Добавлено: ${added}. Пропущено (уже в команде): ${skipped}`);
+      clearSelection();
+      // Перезагружаем граф
+      if (selectedTeamId) {
+        loadGraphData(selectedTeamId);
+      } else {
+        loadAllTeamsGraph();
+      }
+    } catch (err) {
+      alert('Ошибка массового добавления');
+    }
+  }, [bulkTeamId, selectedNodeIds, selectedTeamId, clearSelection]);
 
   // Перетаскивание из сайдбара (Drop)
   const onDrop = useCallback(
@@ -553,6 +596,29 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
                         <span className="graph-selection-count">
                             <i className="fas fa-check-square"></i> Выбрано: {selectedNodeIds.size}
                         </span>
+
+                        {teams.length > 0 && (
+                            <>
+                                <select
+                                    className="graph-selection-select"
+                                    value={bulkTeamId}
+                                    onChange={(e) => setBulkTeamId(e.target.value)}
+                                >
+                                    <option value="">— В команду... —</option>
+                                    {teams.map(t => (
+                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                    ))}
+                                </select>
+                                <button
+                                    className="graph-selection-btn primary"
+                                    onClick={handleBulkAddToTeam}
+                                    disabled={!bulkTeamId}
+                                >
+                                    <i className="fas fa-plus"></i> Добавить
+                                </button>
+                            </>
+                        )}
+
                         <button 
                             className="graph-selection-btn"
                             onClick={() => {
@@ -622,17 +688,69 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
             </div>
             {teams.length > 0 && (
               <div className="graph-filter-group">
-                <div className="graph-filter-group-title">Команды ({teams.length})</div>
-                {teams.map(t => (
-                  <label key={t.id} className="graph-filter-item">
-                    <input
-                      type="checkbox"
-                      checked={!hiddenTeamIds.has(`team-${t.id}`)}
-                      onChange={() => toggleTeam(t.id)}
-                    />
-                    <span>{t.name}</span>
-                  </label>
-                ))}
+                <div className="graph-filter-group-title">
+                  Команды ({teams.length})
+                  <button
+                    className="graph-filter-toggle-all"
+                    onClick={() => {
+                      const allHidden = teams.every(t => hiddenTeamIds.has(`team-${t.id}`));
+                      if (allHidden) {
+                        setHiddenTeamIds(new Set());
+                      } else {
+                        setHiddenTeamIds(new Set(teams.map(t => `team-${t.id}`)));
+                      }
+                    }}
+                    title="Показать/скрыть все"
+                  >
+                    {teams.every(t => hiddenTeamIds.has(`team-${t.id}`)) ? 'Вкл' : 'Выкл'}
+                  </button>
+                </div>
+                <div className="graph-filter-scroll">
+                  {teams.map(t => (
+                    <label key={t.id} className="graph-filter-item">
+                      <input
+                        type="checkbox"
+                        checked={!hiddenTeamIds.has(`team-${t.id}`)}
+                        onChange={() => toggleTeam(t.id)}
+                      />
+                      <span>{t.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {allWorkers.length > 0 && (
+              <div className="graph-filter-group">
+                <div className="graph-filter-group-title">
+                  Сотрудники ({allWorkers.length})
+                  <button
+                    className="graph-filter-toggle-all"
+                    onClick={() => {
+                      const allHidden = allWorkers.every(w => hiddenWorkerIds.has(`emp-${w.id}`));
+                      if (allHidden) {
+                        setHiddenWorkerIds(new Set());
+                      } else {
+                        setHiddenWorkerIds(new Set(allWorkers.map(w => `emp-${w.id}`)));
+                      }
+                    }}
+                    title="Показать/скрыть все"
+                  >
+                    {allWorkers.every(w => hiddenWorkerIds.has(`emp-${w.id}`)) ? 'Вкл' : 'Выкл'}
+                  </button>
+                </div>
+                <div className="graph-filter-scroll">
+                  {allWorkers.map(w => (
+                    <label key={w.id} className="graph-filter-item">
+                      <input
+                        type="checkbox"
+                        checked={!hiddenWorkerIds.has(`emp-${w.id}`)}
+                        onChange={() => toggleWorker(w.id)}
+                      />
+                      <span>{w.name}{!w.user_id ? ' (без учётки)' : ''}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             )}
           </div>
