@@ -2083,13 +2083,13 @@ html, body, #root {
 
 /* Узел Сотрудника */
 .employee-node {
-    padding: 10px;
+    padding: 14px 16px;
     border: 2px solid var(--primary);
-    border-radius: 8px;
+    border-radius: 10px;
     background: white;
-    min-width: 160px;
+    min-width: 220px;
     text-align: center;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
     position: relative;
     transition: border-color 0.2s;
 }
@@ -2100,25 +2100,26 @@ html, body, #root {
 
 .employee-node-label {
     font-weight: bold;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     color: var(--dark);
-    font-size: 14px;
+    font-size: 16px;
 }
 
 .employee-node-skills {
-    font-size: 10px;
+    font-size: 12px;
     color: var(--gray);
     display: flex;
     flex-wrap: wrap;
-    gap: 3px;
+    gap: 4px;
     justify-content: center;
 }
 
 .employee-skill-badge {
     background: #eff6ff;
     color: var(--primary);
-    padding: 2px 5px;
-    border-radius: 4px;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 12px;
 }
 .employee-node-delete {
     margin-top: 12px;
@@ -2146,16 +2147,16 @@ html, body, #root {
     color: white;
     border: none;
     border-radius: 50%;
-    width: 120px;
-    height: 120px;
+    width: 160px;
+    height: 160px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: bold;
-    font-size: 16px;
+    font-size: 20px;
     box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4);
     text-align: center;
-    padding: 10px;
+    padding: 14px;
 }
 
 /* 2. Точки подключения (Handles) - делаем крупнее */
@@ -2428,4 +2429,219 @@ html, body, #root {
 .employee-node-style.node-highlighted .emp-match-count {
     color: #2563eb;
     font-weight: bold;
+}
+
+/* ==================== Контекстное меню узла ==================== */
+.node-context-menu {
+    position: fixed;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 4px 0;
+    min-width: 180px;
+    z-index: 10000;
+    font-size: 14px;
+}
+
+.node-context-menu-item {
+    padding: 8px 14px;
+    cursor: pointer;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.15s;
+}
+
+.node-context-menu-item:hover {
+    background: #f0f6ff;
+    color: #2563eb;
+}
+
+.node-context-menu-item.danger:hover {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.node-context-menu-divider {
+    height: 1px;
+    background: #eee;
+    margin: 4px 0;
+}
+
+/* Кнопка "Показать все скрытые" */
+.graph-show-all-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 10;
+    background: white;
+    border: 1px solid #2563eb;
+    color: #2563eb;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s;
+}
+
+.graph-show-all-btn:hover {
+    background: #2563eb;
+    color: white;
+}
+
+/* ==================== Панель фильтров графа ==================== */
+.graph-filter-panel {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+
+.graph-filter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    font-size: 14px;
+    color: #374151;
+    margin-bottom: 8px;
+}
+
+.graph-filter-toggle {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #6b7280;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.graph-filter-toggle:hover {
+    background: #e5e7eb;
+    color: #2563eb;
+}
+
+.graph-filter-group {
+    margin-top: 8px;
+}
+
+.graph-filter-group-title {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.graph-filter-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #374151;
+    transition: background 0.15s;
+}
+
+.graph-filter-item:hover {
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.graph-filter-item input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: #2563eb;
+}
+
+.graph-filter-show {
+    background: white;
+    border: 1px solid #2563eb;
+    color: #2563eb;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.graph-filter-show:hover {
+    background: #2563eb;
+    color: white;
+}
+
+/* ==================== Выделение узлов ==================== */
+.react-flow__node.node-selected .employee-node {
+    border-color: #f59e0b;
+    border-width: 3px;
+    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.25);
+}
+
+.react-flow__node.node-selected {
+    z-index: 1000 !important;
+}
+
+/* Панель действий выделения */
+.graph-selection-panel {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 100;
+}
+
+.graph-selection-count {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f59e0b;
+}
+
+.graph-selection-btn {
+    background: #f0f6ff;
+    color: #2563eb;
+    border: 1px solid #2563eb;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.graph-selection-btn:hover {
+    background: #2563eb;
+    color: white;
+}
+
+.graph-selection-btn.danger {
+    background: #fee2e2;
+    color: #dc2626;
+    border-color: #dc2626;
+}
+
+.graph-selection-btn.danger:hover {
+    background: #dc2626;
+    color: white;
 }

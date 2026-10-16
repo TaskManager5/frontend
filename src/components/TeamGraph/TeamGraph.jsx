@@ -65,6 +65,12 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [allWorkers, setAllWorkers] = useState([]);
   const [sidebarSearch, setSidebarSearch] = useState('');
+  const [hiddenNodeIds, setHiddenNodeIds] = useState(new Set());
+  const [contextMenu, setContextMenu] = useState(null); // { x, y, nodeId, nodeLabel, type }
+  const [hiddenTeamIds, setHiddenTeamIds] = useState(new Set());   // скрытые команды (фильтр)
+  const [hiddenWorkerIds, setHiddenWorkerIds] = useState(new Set()); // скрытые сотрудники (фильтр)
+  const [showFilters, setShowFilters] = useState(true);
+  const [selectedNodeIds, setSelectedNodeIds] = useState(new Set());
   
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -298,6 +304,120 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
       setEdges((eds) => addEdge({ ...params, animated: true, style: { stroke: '#64748b' } }, eds));
   }, [setEdges]);
 
+  // Фильтрация видимых узлов (без скрытых + с учётом фильтров + подсветка выделения)
+  const visibleNodes = useMemo(() => {
+    return nodes
+      .filter(n => {
+        if (hiddenNodeIds.has(n.id)) return false;
+        if (n.id.startsWith('team-') && hiddenTeamIds.has(n.id)) return false;
+        if (n.id.startsWith('emp-') && hiddenWorkerIds.has(n.id)) return false;
+        return true;
+      })
+      .map(n => {
+        const isSelected = selectedNodeIds.has(n.id);
+        return {
+          ...n,
+          className: isSelected 
+            ? `${n.className || ''} node-selected`.trim() 
+            : (n.className || '').replace('node-selected', '').trim(),
+        };
+      });
+  }, [nodes, hiddenNodeIds, hiddenTeamIds, hiddenWorkerIds, selectedNodeIds]);
+
+  const visibleEdges = useMemo(() => {
+    return edges.filter(e => 
+      !hiddenNodeIds.has(e.source) && !hiddenNodeIds.has(e.target)
+    );
+  }, [edges, hiddenNodeIds]);
+
+  // Правый клик по узлу — открыть контекстное меню
+  const onNodeContextMenu = useCallback((event, node) => {
+    event.preventDefault();
+    const isTeam = node.id.startsWith('team-');
+    setContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      nodeId: node.id,
+      nodeLabel: node.data?.label || 'Узел',
+      type: isTeam ? 'team' : 'employee',
+    });
+  }, []);
+
+  // Скрыть узел
+  const hideNode = useCallback((nodeId) => {
+    setHiddenNodeIds(prev => {
+      const next = new Set(prev);
+      next.add(nodeId);
+      return next;
+    });
+    setContextMenu(null);
+  }, []);
+
+  // Показать все
+  const showAll = useCallback(() => {
+    setHiddenNodeIds(new Set());
+    setHiddenTeamIds(new Set());
+    setHiddenWorkerIds(new Set());
+  }, []);
+
+  // Переключить команду (показать/скрыть)
+  const toggleTeam = useCallback((teamId) => {
+    setHiddenTeamIds(prev => {
+      const next = new Set(prev);
+      const nodeId = `team-${teamId}`;
+      if (next.has(nodeId)) next.delete(nodeId); else next.add(nodeId);
+      return next;
+    });
+  }, []);
+
+  // Переключить сотрудника
+  const toggleWorker = useCallback((workerId) => {
+    setHiddenWorkerIds(prev => {
+      const next = new Set(prev);
+      const nodeId = `emp-${workerId}`;
+      if (next.has(nodeId)) next.delete(nodeId); else next.add(nodeId);
+      return next;
+    });
+  }, []);
+
+  // Закрыть контекстное меню по клику мимо
+  useEffect(() => {
+    const handleClick = () => setContextMenu(null);
+    if (contextMenu) {
+      document.addEventListener('click', handleClick);
+      return () => document.removeEventListener('click', handleClick);
+    }
+  }, [contextMenu]);
+
+  // Клик по узлу — выделение (Ctrl+клик — множественное)
+  const onNodeClick = useCallback((event, node) => {
+    // Игнорируем команды — их нельзя выделять массово (пока)
+    if (node.id.startsWith('team-')) return;
+
+    setSelectedNodeIds(prev => {
+      const next = new Set(prev);
+      if (event.ctrlKey || event.metaKey || event.shiftKey) {
+        // Ctrl/Cmd/Shift — добавить/убрать
+        if (next.has(node.id)) next.delete(node.id); else next.add(node.id);
+      } else {
+        // Обычный клик — сбросить, выделить только этот
+        next.clear();
+        next.add(node.id);
+      }
+      return next;
+    });
+  }, []);
+
+  // Клик по пустому месту — сбросить выделение
+  const onPaneClick = useCallback(() => {
+    setSelectedNodeIds(new Set());
+  }, []);
+
+  // Очистить выделение
+  const clearSelection = useCallback(() => {
+    setSelectedNodeIds(new Set());
+  }, []);
+
   // Перетаскивание из сайдбара (Drop)
   const onDrop = useCallback(
     async (event) => {
@@ -399,26 +519,89 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
         </div>
 
         {(selectedTeamId || teams.length > 0) ? (
-            <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                onConnect={onConnect}
-                nodeTypes={nodeTypes}
-                onDragOver={onDragOver}
-                onDrop={onDrop}
-                fitView
-                zoomOnScroll={true}
-                zoomOnPinch={true}
-                panOnScroll={false}
-                minZoom={0.2}
-                maxZoom={2}
-                defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
-            >
-                <Background color="#aaa" gap={16} />
-                <Controls />
-            </ReactFlow>
+            <>
+                {hiddenNodeIds.size > 0 && (
+                    <button className="graph-show-all-btn" onClick={showAll}>
+                        <i className="fas fa-eye"></i> Показать скрытые ({hiddenNodeIds.size})
+                    </button>
+                )}
+                <ReactFlow
+                    nodes={visibleNodes}
+                    edges={visibleEdges}
+                    onNodesChange={onNodesChange}
+                    onEdgesChange={onEdgesChange}
+                    onConnect={onConnect}
+                    onNodeClick={onNodeClick}
+                    onPaneClick={onPaneClick}
+                    onNodeContextMenu={onNodeContextMenu}
+                    nodeTypes={nodeTypes}
+                    onDragOver={onDragOver}
+                    onDrop={onDrop}
+                    fitView
+                    zoomOnScroll={true}
+                    zoomOnPinch={true}
+                    panOnScroll={false}
+                    minZoom={0.2}
+                    maxZoom={2}
+                    defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+                >
+                    <Background color="#aaa" gap={16} />
+                    <Controls />
+                </ReactFlow>
+                {selectedNodeIds.size > 0 && (
+                    <div className="graph-selection-panel">
+                        <span className="graph-selection-count">
+                            <i className="fas fa-check-square"></i> Выбрано: {selectedNodeIds.size}
+                        </span>
+                        <button 
+                            className="graph-selection-btn"
+                            onClick={() => {
+                                setHiddenNodeIds(prev => new Set([...prev, ...selectedNodeIds]));
+                                clearSelection();
+                            }}
+                        >
+                            <i className="fas fa-eye-slash"></i> Скрыть
+                        </button>
+                        <button 
+                            className="graph-selection-btn danger"
+                            onClick={clearSelection}
+                        >
+                            <i className="fas fa-times"></i> Сбросить
+                        </button>
+                    </div>
+                )}
+                {contextMenu && (
+                    <div
+                        className="node-context-menu"
+                        style={{ left: contextMenu.x, top: contextMenu.y }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div
+                            className="node-context-menu-item"
+                            onClick={() => hideNode(contextMenu.nodeId)}
+                        >
+                            <i className="fas fa-eye-slash"></i> Скрыть «{contextMenu.nodeLabel}»
+                        </div>
+                        <div className="node-context-menu-divider" />
+                        <div
+                            className="node-context-menu-item"
+                            onClick={() => {
+                                // Скрыть все узлы того же типа
+                                const type = contextMenu.type;
+                                const idsToHide = nodes
+                                    .filter(n => type === 'team' 
+                                        ? n.id.startsWith('team-') 
+                                        : !n.id.startsWith('team-'))
+                                    .map(n => n.id);
+                                setHiddenNodeIds(prev => new Set([...prev, ...idsToHide]));
+                                setContextMenu(null);
+                            }}
+                        >
+                            <i className="fas fa-eye-slash"></i> Скрыть все {contextMenu.type === 'team' ? 'команды' : 'сотрудники'}
+                        </div>
+                    </div>
+                )}
+            </>
         ) : (
             <div className="graph-placeholder">
                 <h3>Выберите команду для визуализации</h3>
@@ -428,6 +611,38 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
 
       {/* Сайдбар */}
       <div className="graph-sidebar">
+        {/* Панель фильтров */}
+        {showFilters && (
+          <div className="graph-filter-panel">
+            <div className="graph-filter-header">
+              <span>Фильтры</span>
+              <button className="graph-filter-toggle" onClick={() => setShowFilters(false)} title="Свернуть">
+                <i className="fas fa-chevron-right"></i>
+              </button>
+            </div>
+            {teams.length > 0 && (
+              <div className="graph-filter-group">
+                <div className="graph-filter-group-title">Команды ({teams.length})</div>
+                {teams.map(t => (
+                  <label key={t.id} className="graph-filter-item">
+                    <input
+                      type="checkbox"
+                      checked={!hiddenTeamIds.has(`team-${t.id}`)}
+                      onChange={() => toggleTeam(t.id)}
+                    />
+                    <span>{t.name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {!showFilters && (
+          <button className="graph-filter-show" onClick={() => setShowFilters(true)}>
+            <i className="fas fa-filter"></i> Фильтры
+          </button>
+        )}
+
         <h3>Все сотрудники</h3>
         <input 
             type="text" 
