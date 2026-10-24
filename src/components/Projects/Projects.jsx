@@ -3,6 +3,7 @@ import {
     getProjectsApi,
     createProjectApi,
     updateProjectApi,
+    joinProjectApi,
     deleteProjectApi,
     getProjectMembersApi,
     addProjectMemberApi,
@@ -18,6 +19,7 @@ const ProjectFormModal = ({ project, workers, onClose, onSave }) => {
     const [name, setName] = useState(project?.name || '');
     const [description, setDescription] = useState(project?.description || '');
     const [ownerWorkerId, setOwnerWorkerId] = useState('');
+    const [visibility, setVisibility] = useState(project?.visibility || 'private');
     const [error, setError] = useState(null);
     const isEdit = !!project;
 
@@ -29,7 +31,11 @@ const ProjectFormModal = ({ project, workers, onClose, onSave }) => {
             return;
         }
         try {
-            const payload = { name: name.trim(), description: description.trim() || null };
+            const payload = { 
+                name: name.trim(), 
+                description: description.trim() || null,
+                visibility: visibility
+            };
             if (!isEdit && ownerWorkerId) {
                 payload.ownerWorkerId = Number(ownerWorkerId);
             }
@@ -67,6 +73,16 @@ const ProjectFormModal = ({ project, workers, onClose, onSave }) => {
                                 rows={3}
                                 placeholder="Краткое описание проекта"
                             />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 12 }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                                <input 
+                                    type="checkbox"
+                                    checked={visibility === 'public'}
+                                    onChange={(e) => setVisibility(e.target.checked ? 'public' : 'private')}
+                                />
+                                <span>Публичный проект (любой может подключиться)</span>
+                            </label>
                         </div>
                         {!isEdit && (
                             <div className="form-group" style={{ marginBottom: 12 }}>
@@ -399,6 +415,15 @@ export default function Projects({ currentUser, workers, activeProjectId, onSele
         await load();
     };
 
+    const handleJoinProject = async (project) => {
+        try {
+            await joinProjectApi(project.id);
+            await load();
+        } catch (err) {
+            alert(err.error === 'not_public' ? 'Проект не публичный' : 'Ошибка подключения');
+        }
+    };
+
     const handleDelete = async (project) => {
         if (!window.confirm(`Удалить проект "${project.name}"?\n\nЗадачи и команды останутся, но потеряют привязку к проекту.`)) return;
         try {
@@ -459,6 +484,15 @@ export default function Projects({ currentUser, workers, activeProjectId, onSele
                                     <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => setTeamsProject(p)}>
                                         Команды
                                     </button>
+                                    {(!p.my_role && p.visibility === 'public') && (
+                                        <button 
+                                            className="login-btn" 
+                                            style={{ padding: '6px 12px', fontSize: 12, width: 'auto' }} 
+                                            onClick={() => handleJoinProject(p)}
+                                        >
+                                            Подключиться
+                                        </button>
+                                    )}
                                     {(isAdmin || p.my_role === 'owner') && (
                                         <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => { setEditingProject(p); setFormOpen(true); }}>
                                             Изменить

@@ -237,6 +237,11 @@ export const getProjectsApi = () => apiFetch('/projects');
 
 export const getProjectApi = (projectId) => apiFetch(`/projects/${projectId}`);
 
+export const joinProjectApi = (projectId) => {
+  console.log('API: Подключение к проекту', projectId);
+  return apiFetch(`/projects/${projectId}/join`, { method: 'POST' });
+};
+
 export const createProjectApi = (projectData) => {
   console.log('API: Создание проекта', projectData);
   return apiFetch('/projects', {
