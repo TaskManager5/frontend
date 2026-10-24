@@ -73,12 +73,25 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
   const [selectedNodeIds, setSelectedNodeIds] = useState(new Set());
   const [bulkTeamId, setBulkTeamId] = useState('');
   const [detailWorker, setDetailWorker] = useState(null);
+  const [zoom, setZoom] = useState(() => {
+    const saved = localStorage.getItem('graph-zoom');
+    return saved ? parseFloat(saved) : 1;
+  });
   
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
   // Хук для конвертации координат
   const reactFlowInstance = useReactFlow();
+
+  // Изменение зума — сохраняем в localStorage и применяем
+  const handleZoomChange = (newZoom) => {
+    setZoom(newZoom);
+    localStorage.setItem('graph-zoom', String(newZoom));
+    if (reactFlowInstance) {
+      reactFlowInstance.zoomTo(newZoom);
+    }
+  };
 
   // Загрузка списков
   useEffect(() => {
@@ -591,13 +604,14 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
                     nodeTypes={nodeTypes}
                     onDragOver={onDragOver}
                     onDrop={onDrop}
-                    fitView
+                    onInit={(instance) => {
+                        setTimeout(() => instance.zoomTo(zoom), 100);
+                    }}
                     zoomOnScroll={true}
                     zoomOnPinch={true}
                     panOnScroll={false}
                     minZoom={0.2}
                     maxZoom={2}
-                    defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
                 >
                     <Background color="#aaa" gap={16} />
                     <Controls />
@@ -742,6 +756,47 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
           </div>
         </div>
       )}
+
+      {/* Панель зума */}
+      <div className="graph-zoom-panel">
+          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6, color: '#374151' }}>
+              Масштаб: {Math.round(zoom * 100)}%
+          </div>
+          <input
+              type="range"
+              min="0.3"
+              max="2"
+              step="0.1"
+              value={zoom}
+              onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
+              style={{ width: '100%', cursor: 'pointer' }}
+          />
+          <button
+              onClick={() => {
+                  if (reactFlowInstance) {
+                      reactFlowInstance.fitView({ padding: 0.2 });
+                      setTimeout(() => {
+                          const z = reactFlowInstance.getZoom();
+                          setZoom(z);
+                          localStorage.setItem('graph-zoom', String(z));
+                      }, 200);
+                  }
+              }}
+              style={{
+                  marginTop: 6,
+                  padding: '5px 8px',
+                  fontSize: 11,
+                  background: '#2563eb',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  width: '100%'
+              }}
+          >
+              <i className="fas fa-expand"></i> По размеру
+          </button>
+      </div>
 
       {/* Сайдбар */}
       <div className="graph-sidebar">

@@ -2087,9 +2087,9 @@ html, body, #root {
     border: 2px solid var(--primary);
     border-radius: 10px;
     background: white;
-    min-width: 220px;
+    min-width: 280px;
     text-align: center;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
     position: relative;
     transition: border-color 0.2s;
 }
@@ -2100,9 +2100,9 @@ html, body, #root {
 
 .employee-node-label {
     font-weight: bold;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     color: var(--dark);
-    font-size: 16px;
+    font-size: 18px;
 }
 
 .employee-node-skills {
@@ -2147,8 +2147,8 @@ html, body, #root {
     color: white;
     border: none;
     border-radius: 50%;
-    width: 160px;
-    height: 160px;
+    width: 200px;
+    height: 200px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2727,4 +2727,18 @@ html, body, #root {
 .help-icon:hover {
     background: #2563eb;
     color: white;
+}
+
+/* Панель зума графа */
+.graph-zoom-panel {
+    position: absolute;
+    top: 80px;
+    right: 20px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 10px 12px;
+    width: 160px;
+    z-index: 50;
 }

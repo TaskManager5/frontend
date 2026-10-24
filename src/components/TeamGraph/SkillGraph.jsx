@@ -224,7 +224,6 @@ const SkillGraphContent = ({ workers, allSkills, teams, teamMembersMap }) => {
                     matchCount: matchCount,
                     totalSelected: selectedSkillIds.length
                 },
-                style: { minWidth: '160px', minHeight: '120px' } 
             });
 
             // 3. Связи (навык-сотрудник) — только если у сотрудника ЕСТЬ этот навык
