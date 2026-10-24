@@ -393,11 +393,7 @@ const AppLayout = ({ user, onLogout }) => {
                     <li className={`menu-item ${currentView === 'tasks' ? 'active' : ''}`} onClick={() => setCurrentView('tasks')}>
                         <i className="fas fa-home"></i><span>Главная</span>
                     </li>
-                    {canAddTask && (
-                        <li className="menu-item" onClick={() => setTaskModalOpen(true)}>
-                            <i className="fas fa-plus-circle"></i><span>Добавить задачу</span>
-                        </li>
-                    )}
+
                     {canSeeAnalytics && (
                         <li className={`menu-item ${currentView === 'analytics' ? 'active' : ''}`} onClick={() => setCurrentView('analytics')}>
                             <i className="fas fa-chart-pie"></i><span>Аналитика</span>
@@ -909,6 +905,22 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
              newErrors.taskTeam = "Менеджер обязан выбрать команду";
         }
 
+        // Проверка: если выбрана команда и сотрудник — сотрудник должен быть в команде
+        const assigneeIdRaw = formData.get('taskAssignee');
+        if (teamId && assigneeIdRaw) {
+            try {
+                const members = await getTeamMembersApi(teamId);
+                const assigneeId = parseInt(assigneeIdRaw, 10);
+                const isMember = members.some(m => String(m.id) === String(assigneeId));
+                if (!isMember) {
+                    newErrors.taskAssignee = "Сотрудник не входит в выбранную команду";
+                }
+            } catch (err) {
+                // Не блокируем сохранение, если не удалось проверить
+                console.error('Не удалось проверить членство в команде:', err);
+            }
+        }
+
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
             return;
@@ -1070,6 +1082,7 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
                                     ))
                                 }
                             </select>
+                            {errors.taskAssignee && <span className="validation-error-text">{errors.taskAssignee}</span>}
                         </div>
                         <button type="submit" className="login-btn">Сохранить задачу</button>
                     </form>
