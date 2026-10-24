@@ -2705,3 +2705,26 @@ html, body, #root {
     background: #2563eb;
     color: white;
 }
+
+/* Иконка «?» с подсказкой */
+.help-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #e5e7eb;
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: help;
+    margin-left: 6px;
+    transition: all 0.15s;
+    vertical-align: middle;
+}
+
+.help-icon:hover {
+    background: #2563eb;
+    color: white;
+}

@@ -118,6 +118,11 @@ const ProjectMembersModal = ({ project, workers, currentUser, onClose }) => {
     const [selectedRole, setSelectedRole] = useState('member');
     const [error, setError] = useState(null);
 
+    // Может ли текущий user управлять участниками проекта
+    const canManage = currentUser?.role === 'admin' 
+        || project.my_role === 'owner' 
+        || project.my_role === 'manager';
+
     const load = async () => {
         try {
             setLoading(true);
@@ -167,31 +172,33 @@ const ProjectMembersModal = ({ project, workers, currentUser, onClose }) => {
                     <div className="close-modal" onClick={onClose}>&times;</div>
                 </div>
                 <div className="modal-body">
-                    <div style={{ marginBottom: 16, padding: 12, background: '#f5f5f5', borderRadius: 6 }}>
-                        <div style={{ fontWeight: 600, marginBottom: 8 }}>Добавить участника</div>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            <select
-                                value={selectedWorkerId}
-                                onChange={(e) => setSelectedWorkerId(e.target.value)}
-                                style={{ flex: '1 1 200px' }}
-                            >
-                                <option value="">— Выберите сотрудника —</option>
-                                {available.map((w) => (
-                                    <option key={w.id} value={w.id}>
-                                        {w.name}{w.position ? ' — ' + w.position : ''}{!w.user_id ? ' (без учётки)' : ''}
-                                    </option>
-                                ))}
-                            </select>
-                            <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} style={{ flex: '0 0 140px' }}>
-                                <option value="member">Участник</option>
-                                <option value="manager">Руководитель</option>
-                                <option value="owner">Владелец</option>
-                            </select>
-                            <button className="login-btn" style={{ width: 'auto', padding: '8px 16px' }} onClick={handleAdd} disabled={!selectedWorkerId}>
-                                Добавить
-                            </button>
+                    {canManage && (
+                        <div style={{ marginBottom: 16, padding: 12, background: '#f5f5f5', borderRadius: 6 }}>
+                            <div style={{ fontWeight: 600, marginBottom: 8 }}>Добавить участника</div>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                <select
+                                    value={selectedWorkerId}
+                                    onChange={(e) => setSelectedWorkerId(e.target.value)}
+                                    style={{ flex: '1 1 200px' }}
+                                >
+                                    <option value="">— Выберите сотрудника —</option>
+                                    {available.map((w) => (
+                                        <option key={w.id} value={w.id}>
+                                            {w.name}{w.position ? ' — ' + w.position : ''}{!w.user_id ? ' (без учётки)' : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                                <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} style={{ flex: '0 0 140px' }}>
+                                    <option value="member">Участник</option>
+                                    <option value="manager">Руководитель</option>
+                                    <option value="owner">Владелец</option>
+                                </select>
+                                <button className="login-btn" style={{ width: 'auto', padding: '8px 16px' }} onClick={handleAdd} disabled={!selectedWorkerId}>
+                                    Добавить
+                                </button>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {error && <div style={{ color: 'red', marginBottom: 8 }}>{error}</div>}
 
@@ -211,13 +218,15 @@ const ProjectMembersModal = ({ project, workers, currentUser, onClose }) => {
                                         <div style={{ fontWeight: 600 }}>{m.name}{!m.login ? ' (без учётки)' : ''}</div>
                                         <div style={{ fontSize: 12, color: '#888' }}>{m.position || '—'} · роль: {m.role}</div>
                                     </div>
-                                    <button
-                                        className="delete-btn"
-                                        style={{ padding: '6px 12px' }}
-                                        onClick={() => handleRemove(m.id, m.name)}
-                                    >
-                                        Удалить
-                                    </button>
+                                    {canManage && (
+                                        <button
+                                            className="delete-btn"
+                                            style={{ padding: '6px 12px' }}
+                                            onClick={() => handleRemove(m.id, m.name)}
+                                        >
+                                            Удалить
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -236,6 +245,11 @@ const ProjectTeamsModal = ({ project, currentUser, onClose }) => {
     const [loading, setLoading] = useState(true);
     const [selectedTeamId, setSelectedTeamId] = useState('');
     const [error, setError] = useState(null);
+
+    // Может ли текущий user управлять командами проекта
+    const canManage = currentUser?.role === 'admin' 
+        || project.my_role === 'owner' 
+        || project.my_role === 'manager';
 
     const load = async () => {
         try {
@@ -289,29 +303,31 @@ const ProjectTeamsModal = ({ project, currentUser, onClose }) => {
                     <div className="close-modal" onClick={onClose}>&times;</div>
                 </div>
                 <div className="modal-body">
-                    <div style={{ marginBottom: 16, padding: 12, background: '#f5f5f5', borderRadius: 6 }}>
-                        <div style={{ fontWeight: 600, marginBottom: 8 }}>Привязать команду</div>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            <select
-                                value={selectedTeamId}
-                                onChange={(e) => setSelectedTeamId(e.target.value)}
-                                style={{ flex: '1 1 200px' }}
-                            >
-                                <option value="">— Выберите команду —</option>
-                                {available.map((t) => (
-                                    <option key={t.id} value={t.id}>{t.name}</option>
-                                ))}
-                            </select>
-                            <button
-                                className="login-btn"
-                                style={{ width: 'auto', padding: '8px 16px' }}
-                                onClick={handleAdd}
-                                disabled={!selectedTeamId}
-                            >
-                                Привязать
-                            </button>
+                    {canManage && (
+                        <div style={{ marginBottom: 16, padding: 12, background: '#f5f5f5', borderRadius: 6 }}>
+                            <div style={{ fontWeight: 600, marginBottom: 8 }}>Привязать команду</div>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                <select
+                                    value={selectedTeamId}
+                                    onChange={(e) => setSelectedTeamId(e.target.value)}
+                                    style={{ flex: '1 1 200px' }}
+                                >
+                                    <option value="">— Выберите команду —</option>
+                                    {available.map((t) => (
+                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                    ))}
+                                </select>
+                                <button
+                                    className="login-btn"
+                                    style={{ width: 'auto', padding: '8px 16px' }}
+                                    onClick={handleAdd}
+                                    disabled={!selectedTeamId}
+                                >
+                                    Привязать
+                                </button>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {error && <div style={{ color: 'red', marginBottom: 8 }}>{error}</div>}
 
@@ -328,7 +344,7 @@ const ProjectTeamsModal = ({ project, currentUser, onClose }) => {
                                     padding: 10, borderBottom: '1px solid #eee'
                                 }}>
                                     <div style={{ fontWeight: 600 }}>{t.name}</div>
-                                    {['admin', 'manager'].includes(currentUser?.role) && (
+                                    {canManage && (
                                         <button
                                             className="delete-btn"
                                             style={{ padding: '6px 12px' }}

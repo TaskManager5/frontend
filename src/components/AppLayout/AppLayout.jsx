@@ -207,6 +207,16 @@ const AppLayout = ({ user, onLogout }) => {
         today.setHours(0, 0, 0, 0); 
 
         switch (currentFilter) {
+            case 'my': {
+                // Фильтр «Мои задачи»: задачи, где assignee = worker текущего user'а
+                const myWorker = workers.find(w => w.user_id && String(w.user_id) === String(userInfo.id));
+                if (myWorker) {
+                    filtered = filtered.filter(task => String(task.assignee_worker_id) === String(myWorker.id));
+                } else {
+                    filtered = [];
+                }
+                break;
+            }
             case 'urgent':
                 filtered = filtered.filter(task => isTaskUrgent(task) && !task.completed);
                 break;
@@ -237,7 +247,7 @@ const AppLayout = ({ user, onLogout }) => {
         }
         
         return filtered;
-    }, [tasks, currentFilter, searchTerm]);
+    }, [tasks, currentFilter, searchTerm, workers, userInfo]);
 
     // Группировка по квадрантам
     const quadrants = useMemo(() => {
@@ -574,6 +584,9 @@ const AppLayout = ({ user, onLogout }) => {
                                     <i className="fas fa-plus"></i> Добавить задачу
                                 </button>
                             )}
+                            <button className={`action-button btn-secondary ${currentFilter === 'my' ? 'filter-active' : ''}`} onClick={() => setCurrentFilter('my')}>
+                                <i className="fas fa-user"></i> Мои задачи
+                            </button>
                             <button className={`action-button btn-secondary ${currentFilter === 'urgent' ? 'filter-active' : ''}`} onClick={() => setCurrentFilter('urgent')}>
                                 <i className="fas fa-fire"></i> Срочные задачи
                             </button>
@@ -617,6 +630,9 @@ const AppLayout = ({ user, onLogout }) => {
             {isEmployeesModalOpen && (
                 <EmployeesModal 
                     onClose={() => setEmployeesModalOpen(false)}
+                    teams={teams}
+                    tasks={tasks}
+                    projects={projects}
                     onShowAdd={() => {
                         setEmployeesModalOpen(false);
                         setAddEmployeeModalOpen(true);
@@ -634,6 +650,7 @@ const AppLayout = ({ user, onLogout }) => {
                     onSave={handleSaveEmployee}
                     onRefresh={loadData}
                     allSkills={allSkills} 
+                    currentUser={userInfo}
                 />
             )}
             
@@ -1004,11 +1021,17 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
                         </div>
 
                         <div className="form-group">
-                            <label htmlFor="taskImportance">Важность (1-5)</label>
+                            <label htmlFor="taskImportance">
+                                Важность (1-5)
+                                <span title="Насколько задача важна для бизнеса. 1 — низкая, 5 — критическая (без неё нельзя выпустить продукт)." className="help-icon">?</span>
+                            </label>
                             <input type="number" id="taskImportance" name="taskImportance" min="1" max="5" defaultValue={task?.importance || 3} className={errors.taskImportance ? "input-error" : ""} onChange={() => setErrors(prev => ({...prev, taskImportance: null}))} />{errors.taskImportance && <span className="validation-error-text">{errors.taskImportance}</span>}
                         </div>
                         <div className="form-group">
-                            <label htmlFor="taskComplexity">Сложность (1-5)</label>
+                            <label htmlFor="taskComplexity">
+                                Сложность (1-5)
+                                <span title="Техническая сложность выполнения. 1 — тривиальная, 5 — требует экспертизы и много времени." className="help-icon">?</span>
+                            </label>
                             <input type="number" id="taskComplexity" name="taskComplexity" min="1" max="5" defaultValue={task?.complexity || 3} className={errors.taskComplexity ? "input-error" : ""} onChange={() => setErrors(prev => ({...prev, taskComplexity: null}))} />{errors.taskComplexity && <span className="validation-error-text">{errors.taskComplexity}</span>}
                         </div>
                         
@@ -1056,8 +1079,103 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
     );
 };
 
+// EmployeeDetailsModal — детали сотрудника
+const EmployeeDetailsModal = ({ employee, teams, projects, tasks, onClose }) => {
+    if (!employee) return null;
+
+    // Команды, в которых состоит сотрудник
+    const myTeams = teams.filter(t => {
+        const members = t.members || [];
+        return members.some(m => String(m.id) === String(employee.id));
+    });
+
+    // Проекты (через projects, где worker есть в project_members)
+    const myProjects = (projects || []).filter(p => {
+        // Здесь нужна доп. загрузка участников — упрощённо: покажем все проекты
+        return true;
+    });
+
+    // Задачи, где сотрудник — assignee
+    const myTasks = (tasks || []).filter(t => 
+        String(t.assignee_worker_id) === String(employee.id)
+    );
+
+    return (
+        <div className="modal" style={{ display: 'flex' }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+            <div className="modal-content" style={{ maxWidth: '640px' }}>
+                <div className="modal-header">
+                    <div className="modal-title">
+                        {employee.name}
+                        {!employee.user_id && <span style={{ fontSize: 13, color: '#999', marginLeft: 8, fontWeight: 400 }}>(без учётки)</span>}
+                    </div>
+                    <div className="close-modal" onClick={onClose}>&times;</div>
+                </div>
+                <div className="modal-body">
+                    <div style={{ marginBottom: 16 }}>
+                        <div style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>
+                            <strong>Должность:</strong> {employee.position || '—'}
+                        </div>
+                        <div style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>
+                            <strong>Логин:</strong> {employee.login || '— (нет учётки)'}
+                        </div>
+                        <div style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>
+                            <strong>Роль:</strong> {employee.role || '—'}
+                        </div>
+                    </div>
+
+                    <div style={{ marginBottom: 16 }}>
+                        <div style={{ fontWeight: 600, marginBottom: 8 }}>Навыки ({employee.skills?.length || 0})</div>
+                        {employee.skills && employee.skills.length > 0 ? (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                {employee.skills.map(s => (
+                                    <span key={s.skill_id} className="skill-tag" title={s.category_name}>
+                                        {s.skill_name}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <div style={{ color: '#999', fontSize: 13 }}>Нет навыков</div>
+                        )}
+                    </div>
+
+                    <div style={{ marginBottom: 16 }}>
+                        <div style={{ fontWeight: 600, marginBottom: 8 }}>Задачи ({myTasks.length})</div>
+                        {myTasks.length > 0 ? (
+                            <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13 }}>
+                                {myTasks.slice(0, 10).map(t => (
+                                    <li key={t.id} style={{ marginBottom: 4 }}>
+                                        {t.title}
+                                        {t.completed && <span style={{ color: '#10b981', marginLeft: 6 }}>✓</span>}
+                                    </li>
+                                ))}
+                                {myTasks.length > 10 && <li style={{ color: '#999' }}>... и ещё {myTasks.length - 10}</li>}
+                            </ul>
+                        ) : (
+                            <div style={{ color: '#999', fontSize: 13 }}>Нет задач</div>
+                        )}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
+                        <button type="button" className="btn-secondary" onClick={onClose} style={{
+                            padding: '8px 20px',
+                            background: '#e5e7eb',
+                            color: '#333',
+                            border: 'none',
+                            borderRadius: 6,
+                            cursor: 'pointer',
+                            fontSize: 14,
+                        }}>Закрыть</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // EmployeesModal
-const EmployeesModal = ({ onClose, onShowAdd, workers, canAdd, currentUser, onDelete, canDelete }) => {
+const EmployeesModal = ({ onClose, onShowAdd, workers, canAdd, currentUser, onDelete, canDelete, teams = [], tasks = [], projects = [] }) => {
+    const [selectedEmployee, setSelectedEmployee] = useState(null);
+    
     return (
         // Меняем onClick на onMouseDown
         <div className="modal" style={{ display: 'flex' }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -1076,7 +1194,13 @@ const EmployeesModal = ({ onClose, onShowAdd, workers, canAdd, currentUser, onDe
                     <div className="employees-content">
                         <div className="employees-grid">
                             {workers.map(employee => (
-                                <div className="employee-card" key={employee.id}>
+                                <div 
+                                    className="employee-card" 
+                                    key={employee.id}
+                                    onClick={() => setSelectedEmployee(employee)}
+                                    style={{ cursor: 'pointer' }}
+                                    title="Нажмите, чтобы посмотреть детали"
+                                >
                                     <div className="employee-avatar">{employee.name.split(' ').map(n => n[0]).join('')}</div>
                                     <div className="employee-info">
                                         <div className="employee-name">{employee.name}</div>
@@ -1098,7 +1222,7 @@ const EmployeesModal = ({ onClose, onShowAdd, workers, canAdd, currentUser, onDe
                                     {canDelete && employee.user_id && employee.user_id !== currentUser.id && employee.login !== 'admin' && (
                                         <button 
                                             className="btn btn-danger btn-sm"
-                                            onClick={() => onDelete(employee.user_id, employee.name)}
+                                            onClick={(e) => { e.stopPropagation(); onDelete(employee.user_id, employee.name); }}
                                             title="Удалить сотрудника"
                                             style={{alignSelf: 'flex-start', padding: '5px 8px'}}
                                         >
@@ -1111,12 +1235,21 @@ const EmployeesModal = ({ onClose, onShowAdd, workers, canAdd, currentUser, onDe
                     </div>
                 </div>
             </div>
+            {selectedEmployee && (
+                <EmployeeDetailsModal
+                    employee={selectedEmployee}
+                    teams={teams}
+                    projects={projects}
+                    tasks={tasks}
+                    onClose={() => setSelectedEmployee(null)}
+                />
+            )}
         </div>
     );
 };
 
 // AddEmployeeModal
-const AddEmployeeModal = ({ onClose, onSave, onRefresh, allSkills }) => {
+const AddEmployeeModal = ({ onClose, onSave, onRefresh, allSkills, currentUser }) => {
     const [error, setError] = useState(null); // Ошибка API
     const [formErrors, setFormErrors] = useState({}); // Ошибки валидации полей
     const [hasAccount, setHasAccount] = useState(true); // Создать с учётной записью?
@@ -1287,7 +1420,9 @@ const AddEmployeeModal = ({ onClose, onSave, onRefresh, allSkills }) => {
                             <select id="employeeRole" name="employeeRole" defaultValue="user">
                                 <option value="user">User (Сотрудник)</option>
                                 <option value="manager">Manager (Менеджер)</option>
-                                <option value="admin">Admin (Администратор)</option>
+                                {currentUser?.role === 'admin' && (
+                                    <option value="admin">Admin (Администратор)</option>
+                                )}
                             </select>
                         </div>
                         

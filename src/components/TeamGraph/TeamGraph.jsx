@@ -72,6 +72,7 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
   const [showFilters, setShowFilters] = useState(true);
   const [selectedNodeIds, setSelectedNodeIds] = useState(new Set());
   const [bulkTeamId, setBulkTeamId] = useState('');
+  const [detailWorker, setDetailWorker] = useState(null);
   
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -414,6 +415,15 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
     setSelectedNodeIds(new Set());
   }, []);
 
+  // Двойной клик по сотруднику — открыть инфо
+  const onNodeDoubleClick = useCallback((event, node) => {
+    if (node.id.startsWith('emp-')) {
+      const workerId = parseInt(node.id.replace('emp-', ''), 10);
+      const worker = allWorkers.find(w => String(w.id) === String(workerId));
+      if (worker) setDetailWorker(worker);
+    }
+  }, [allWorkers]);
+
   // Очистить выделение
   const clearSelection = useCallback(() => {
     setSelectedNodeIds(new Set());
@@ -575,6 +585,7 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
                     onEdgesChange={onEdgesChange}
                     onConnect={onConnect}
                     onNodeClick={onNodeClick}
+                    onNodeDoubleClick={onNodeDoubleClick}
                     onPaneClick={onPaneClick}
                     onNodeContextMenu={onNodeContextMenu}
                     nodeTypes={nodeTypes}
@@ -674,6 +685,63 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
             </div>
         )}
       </div>
+
+      {/* Модалка деталей сотрудника */}
+      {detailWorker && (
+        <div 
+          className="modal" 
+          style={{ display: 'flex', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000 }} 
+          onMouseDown={(e) => e.target === e.currentTarget && setDetailWorker(null)}
+        >
+          <div style={{ maxWidth: 640, margin: 'auto', background: 'white', borderRadius: 12, maxHeight: '90vh', overflow: 'auto', width: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #eee' }}>
+              <div style={{ fontSize: 18, fontWeight: 700 }}>
+                {detailWorker.name}
+                {!detailWorker.user_id && <span style={{ fontSize: 13, color: '#999', marginLeft: 8, fontWeight: 400 }}>(без учётки)</span>}
+              </div>
+              <div style={{ cursor: 'pointer', fontSize: 24, color: '#999' }} onClick={() => setDetailWorker(null)}>&times;</div>
+            </div>
+            <div style={{ padding: 20 }}>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>
+                  <strong>Должность:</strong> {detailWorker.position || '—'}
+                </div>
+                <div style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>
+                  <strong>Логин:</strong> {detailWorker.login || '— (нет учётки)'}
+                </div>
+                <div style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>
+                  <strong>Роль:</strong> {detailWorker.role || '—'}
+                </div>
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                  Навыки ({detailWorker.skills?.length || 0})
+                </div>
+                {detailWorker.skills && detailWorker.skills.length > 0 ? (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {detailWorker.skills.map(s => (
+                      <span key={s.skill_id} className="employee-skill-badge" title={s.category_name}>
+                        {s.skill_name}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ color: '#999', fontSize: 13 }}>Нет навыков</div>
+                )}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+                <button 
+                  type="button" 
+                  onClick={() => setDetailWorker(null)}
+                  style={{ padding: '8px 20px', background: '#e5e7eb', color: '#333', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 500 }}
+                >
+                  Закрыть
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Сайдбар */}
       <div className="graph-sidebar">

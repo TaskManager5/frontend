@@ -227,11 +227,14 @@ const SkillGraphContent = ({ workers, allSkills, teams, teamMembersMap }) => {
                 style: { minWidth: '160px', minHeight: '120px' } 
             });
 
-            // 3. Связи (навык-сотрудник)
+            // 3. Связи (навык-сотрудник) — только если у сотрудника ЕСТЬ этот навык
             if (hasSelectedSkills) {
                 const empSkillIds = emp.skills.map(s => s.skill_id);
                 selectedSkillIds.forEach(sId => {
                     const isSkillMatch = empSkillIds.includes(sId);
+                    
+                    // Создаём связь ТОЛЬКО если у сотрудника есть этот навык
+                    if (!isSkillMatch) return;
                     
                     tempEdges.push({
                         id: `e-${sId}-${emp.id}`,
@@ -240,9 +243,9 @@ const SkillGraphContent = ({ workers, allSkills, teams, teamMembersMap }) => {
                         type: 'straight', 
                         animated: isFullMatch,
                         style: { 
-                            stroke: isFullMatch ? '#2563eb' : (isSkillMatch ? '#64748b' : '#a1a1aa'), 
-                            strokeWidth: isFullMatch ? 3 : (isSkillMatch ? 2 : 1),
-                            opacity: isFullMatch ? 1 : (isSkillMatch ? 0.7 : 0.4) 
+                            stroke: isFullMatch ? '#2563eb' : '#64748b',
+                            strokeWidth: isFullMatch ? 3 : 2,
+                            opacity: isFullMatch ? 1 : 0.7,
                         }
                     });
                 });
