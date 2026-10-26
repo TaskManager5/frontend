@@ -17,7 +17,10 @@ import {
   getTeamMembersApi, 
   getWorkersApi,
   addTeamMemberApi,
-  removeTeamMemberApi
+  removeTeamMemberApi,
+  getProjectsApi,
+  getSkillsApi,
+  getProjectTeamsApi
 } from '../../api/api';
 
 // Кастомный узел сотрудника 
@@ -57,7 +60,35 @@ const EmployeeNode = ({ data }) => {
   );
 };
 
-const nodeTypes = { employee: EmployeeNode };
+// Проект — треугольник / ромб
+const ProjectNode = ({ data }) => (
+  <div className="project-node">
+    <Handle type="target" position={Position.Top} style={{ background: '#7c3aed' }} />
+    <div className="project-node-icon">
+      <i className="fas fa-cube"></i>
+    </div>
+    <div className="project-node-label">{data.label}</div>
+    <div className="project-node-counts">
+      {data.teamsCount} команд · {data.membersCount} участников
+    </div>
+    <Handle type="source" position={Position.Bottom} style={{ background: '#7c3aed' }} />
+  </div>
+);
+
+// Навык — маленький бейдж
+const SkillNode = ({ data }) => (
+  <div className="skill-node" title={data.categoryName || ''}>
+    <Handle type="target" position={Position.Top} style={{ background: '#059669' }} />
+    <i className="fas fa-tag"></i> {data.label}
+    <Handle type="source" position={Position.Bottom} style={{ background: '#059669' }} />
+  </div>
+);
+
+const nodeTypes = { 
+  employee: EmployeeNode,
+  project: ProjectNode,
+  skill: SkillNode,
+};
 
 //Основной компонент контента (внутри Provider)
 const TeamGraphContent = ({ currentUser, activeProjectId }) => {
@@ -77,6 +108,10 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
     const saved = localStorage.getItem('graph-zoom');
     return saved ? parseFloat(saved) : 1;
   });
+  const [allProjects, setAllProjects] = useState([]);
+  const [allSkills, setAllSkills] = useState([]);
+  const [hiddenProjectIds, setHiddenProjectIds] = useState(new Set());
+  const [hiddenSkillIds, setHiddenSkillIds] = useState(new Set());
   
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -98,12 +133,19 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
     const init = async () => {
       try {
         const params = activeProjectId ? { projectId: activeProjectId } : {};
-        const [tData, eData] = await Promise.all([
+        const [tData, eData, pData, sData] = await Promise.all([
             getTeamsApi(params),
-            getWorkersApi()
+            getWorkersApi(),
+            getProjectsApi(),
+            getSkillsApi()
         ]);
         setTeams(tData);
         setAllWorkers(eData);
+        setAllProjects(pData || []);
+        setAllSkills(sData || []);
+        // По умолчанию все навыки скрыты — включаем в фильтре
+        const allSkillIds = (sData || []).flatMap(c => (c.skills || []).map(s => `skill-${s.skill_id}`));
+        setHiddenSkillIds(new Set(allSkillIds));
       } catch (err) {
         console.error("Ошибка загрузки данных:", err);
       }
@@ -118,20 +160,14 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
     } else {
         loadGraphData(selectedTeamId);
     }
-  }, [selectedTeamId, teams, allWorkers]);
+  }, [selectedTeamId, teams, allWorkers, allProjects, allSkills]);
 
   // Функция построения графа со ВСЕМИ командами активного проекта
   const loadAllTeamsGraph = async () => {
-    if (!teams || teams.length === 0) {
-      setNodes([]);
-      setEdges([]);
-      return;
-    }
-
     try {
       // Загружаем участников всех команд параллельно
       const teamsWithMembers = await Promise.all(
-        teams.map(async (team) => {
+        (teams || []).map(async (team) => {
           try {
             const members = await getTeamMembersApi(team.id);
             return { team, members };
@@ -141,29 +177,62 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
         })
       );
 
+      // Загружаем команды для каждого проекта (пропускаем 403/404)
+      const projectsWithTeams = (await Promise.all(
+        (allProjects || []).map(async (project) => {
+          try {
+            const teamsOfProject = await getProjectTeamsApi(project.id);
+            return { project, teamIds: teamsOfProject.map(t => String(t.id)), ok: true };
+          } catch (err) {
+            return { project, teamIds: [], ok: false };
+          }
+        })
+      )).filter(p => p.ok);
+
       setNodes((currentNodes) => {
         const newNodes = [];
         const newEdges = [];
 
+        // === Проекты (сверху, по горизонтали) ===
+        const PROJECT_WIDTH = 400;
+        projectsWithTeams.forEach(({ project }, pIndex) => {
+          const nodeId = `project-${project.id}`;
+          const existingNode = currentNodes.find(n => n.id === nodeId);
+          const projTeams = projectsWithTeams.find(pt => pt.project.id === project.id);
+          newNodes.push({
+            id: nodeId,
+            type: 'project',
+            position: existingNode?.position || { 
+              x: pIndex * PROJECT_WIDTH, 
+              y: -400 
+            },
+            data: {
+              label: project.name,
+              teamsCount: projTeams?.teamIds.length || 0,
+              membersCount: project.members_count || 0,
+            },
+          });
+        });
+
+        // === Команды и сотрудники (под проектами) ===
         teamsWithMembers.forEach(({ team, members }, teamIndex) => {
-          // Центральный узел команды — в колонке (teamIndex)
           const colX = teamIndex * 450;
           const centerId = `team-${team.id}`;
+          const existingCenter = currentNodes.find(n => n.id === centerId);
 
           newNodes.push({
             id: centerId,
             type: 'input',
             data: { label: team.name },
-            position: { x: colX + 200, y: 50 },
+            position: existingCenter?.position || { x: colX + 200, y: 0 },
             className: 'center-node',
           });
 
-          // Узлы сотрудников — вертикально под командой
           members.forEach((member, memberIndex) => {
             const nodeId = `emp-${member.id}`;
             const existingNode = currentNodes.find(n => n.id === nodeId);
 
-            const position = existingNode ? existingNode.position : {
+            const position = existingNode?.position || {
               x: colX,
               y: 200 + memberIndex * 160,
             };
@@ -179,11 +248,10 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
                 label: fullEmployee?.name || member.name || member.login || `Сотрудник ${member.id}`,
                 userId: member.id,
                 skills: skillNames,
-                onRemove: null, // без команды нельзя удалить
+                onRemove: null,
               },
             });
 
-            // Связь команда → участник
             newEdges.push({
               id: `e-team-${team.id}-${member.id}`,
               source: centerId,
@@ -195,12 +263,45 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
           });
         });
 
+        // === Навыки (снизу) ===
+        const flatSkills = (allSkills || []).flatMap(cat => 
+          (cat.skills || []).map(s => ({ ...s, category_name: cat.category_name }))
+        );
+        flatSkills.forEach((skill, sIndex) => {
+          const nodeId = `skill-${skill.skill_id}`;
+          const existingNode = currentNodes.find(n => n.id === nodeId);
+          newNodes.push({
+            id: nodeId,
+            type: 'skill',
+            position: existingNode?.position || { x: (sIndex % 5) * 200, y: 900 + Math.floor(sIndex / 5) * 80 },
+            data: {
+              label: skill.skill_name,
+              categoryName: skill.category_name,
+            },
+          });
+        });
+
         return newNodes;
       });
 
       setEdges((currentEdges) => {
         // Пересобираем edges
         const newEdges = [];
+
+        // Проект → команда
+        projectsWithTeams.forEach(({ project, teamIds }) => {
+          teamIds.forEach(teamId => {
+            newEdges.push({
+              id: `e-project-${project.id}-team-${teamId}`,
+              source: `project-${project.id}`,
+              target: `team-${teamId}`,
+              type: 'default',
+              animated: true,
+              style: { stroke: '#7c3aed', strokeWidth: 2, strokeDasharray: '5,3' },
+            });
+          });
+        });
+
         teamsWithMembers.forEach(({ team, members }) => {
           members.forEach((member) => {
             newEdges.push({
@@ -213,6 +314,21 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
             });
           });
         });
+
+        // Сотрудник → навык (тоньше и прозрачнее)
+        allWorkers.forEach(worker => {
+          (worker.skills || []).forEach(ws => {
+            newEdges.push({
+              id: `e-emp-${worker.id}-skill-${ws.skill_id}`,
+              source: `emp-${worker.id}`,
+              target: `skill-${ws.skill_id}`,
+              type: 'straight',
+              animated: false,
+              style: { stroke: '#059669', strokeWidth: 0.7, opacity: 0.25 },
+            });
+          });
+        });
+
         return newEdges;
       });
 
@@ -313,11 +429,43 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
     }
   };
 
-  // Создание связи (drag-line)
-  const onConnect = useCallback((params) => {
-      // Разрешаем соединять сотрудников
+  // Создание связи (drag-line) — умная логика:
+  // 1. Сотрудник → Команда: добавить в команду через API
+  // 2. Остальное — визуальная связь
+  const onConnect = useCallback(async (params) => {
+      const { source, target } = params;
+      const isSourceEmp = source.startsWith('emp-');
+      const isTargetTeam = target.startsWith('team-');
+      const isSourceTeam = source.startsWith('team-');
+      const isTargetEmp = target.startsWith('emp-');
+
+      // === Сотрудник → Команда: добавить в команду ===
+      if ((isSourceEmp && isTargetTeam) || (isSourceTeam && isTargetEmp)) {
+          const empNode = isSourceEmp ? source : target;
+          const teamNode = isSourceTeam ? source : target;
+          const workerId = parseInt(empNode.replace('emp-', ''), 10);
+          const teamId = parseInt(teamNode.replace('team-', ''), 10);
+
+          if (workerId && teamId) {
+              try {
+                  await addTeamMemberApi(teamId, workerId, 'member');
+                  // Обновляем граф
+                  await loadAllTeamsGraph();
+              } catch (err) {
+                  // Скорее всего, уже в команде — просто визуальная связь
+                  setEdges((eds) => addEdge({ 
+                      ...params, 
+                      animated: true, 
+                      style: { stroke: '#64748b' } 
+                  }, eds));
+              }
+              return;
+          }
+      }
+
+      // Остальное — визуальная связь
       setEdges((eds) => addEdge({ ...params, animated: true, style: { stroke: '#64748b' } }, eds));
-  }, [setEdges]);
+  }, [setEdges, loadAllTeamsGraph]);
 
   // Фильтрация видимых узлов (без скрытых + с учётом фильтров + подсветка выделения)
   const visibleNodes = useMemo(() => {
@@ -326,6 +474,8 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
         if (hiddenNodeIds.has(n.id)) return false;
         if (n.id.startsWith('team-') && hiddenTeamIds.has(n.id)) return false;
         if (n.id.startsWith('emp-') && hiddenWorkerIds.has(n.id)) return false;
+        if (n.id.startsWith('project-') && hiddenProjectIds.has(n.id)) return false;
+        if (n.id.startsWith('skill-') && hiddenSkillIds.has(n.id)) return false;
         return true;
       })
       .map(n => {
@@ -337,7 +487,7 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
             : (n.className || '').replace('node-selected', '').trim(),
         };
       });
-  }, [nodes, hiddenNodeIds, hiddenTeamIds, hiddenWorkerIds, selectedNodeIds]);
+  }, [nodes, hiddenNodeIds, hiddenTeamIds, hiddenWorkerIds, hiddenProjectIds, hiddenSkillIds, selectedNodeIds]);
 
   const visibleEdges = useMemo(() => {
     return edges.filter(e => 
@@ -570,20 +720,6 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
       
       {/* Область графа */}
       <div className="graph-pane">
-        <div className="graph-controls-overlay">
-            <label className="graph-select-label">Выберите проект/команду:</label>
-            <select 
-                className="graph-select"
-                value={selectedTeamId} 
-                onChange={(e) => setSelectedTeamId(e.target.value)}
-            >
-                <option value="">-- Не выбрано --</option>
-                {teams.map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-            </select>
-        </div>
-
         {(selectedTeamId || teams.length > 0) ? (
             <>
                 {hiddenNodeIds.size > 0 && (
@@ -843,6 +979,33 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
               </div>
             )}
 
+            {allProjects && allProjects.length > 0 && (
+              <div className="graph-filter-group">
+                <div className="graph-filter-group-title">
+                  Проекты ({allProjects.length})
+                </div>
+                <div className="graph-filter-scroll">
+                  {allProjects.map(p => (
+                    <label key={p.id} className="graph-filter-item">
+                      <input
+                        type="checkbox"
+                        checked={!hiddenProjectIds.has(`project-${p.id}`)}
+                        onChange={() => {
+                          setHiddenProjectIds(prev => {
+                            const next = new Set(prev);
+                            const id = `project-${p.id}`;
+                            if (next.has(id)) next.delete(id); else next.add(id);
+                            return next;
+                          });
+                        }}
+                      />
+                      <span>{p.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {allWorkers.length > 0 && (
               <div className="graph-filter-group">
                 <div className="graph-filter-group-title">
@@ -876,6 +1039,36 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
                 </div>
               </div>
             )}
+
+            {allSkills && allSkills.length > 0 && (() => {
+              const flatSkills = allSkills.flatMap(c => (c.skills || []).map(s => ({ ...s, category_name: c.category_name })));
+              return (
+                <div className="graph-filter-group">
+                  <div className="graph-filter-group-title">
+                    Навыки ({flatSkills.length})
+                  </div>
+                  <div className="graph-filter-scroll">
+                    {flatSkills.map(s => (
+                      <label key={s.skill_id} className="graph-filter-item">
+                        <input
+                          type="checkbox"
+                          checked={!hiddenSkillIds.has(`skill-${s.skill_id}`)}
+                          onChange={() => {
+                            setHiddenSkillIds(prev => {
+                              const next = new Set(prev);
+                              const id = `skill-${s.skill_id}`;
+                              if (next.has(id)) next.delete(id); else next.add(id);
+                              return next;
+                            });
+                          }}
+                        />
+                        <span title={s.category_name}>{s.skill_name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
         {!showFilters && (

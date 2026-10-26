@@ -2087,9 +2087,9 @@ html, body, #root {
     border: 2px solid var(--primary);
     border-radius: 10px;
     background: white;
-    min-width: 280px;
+    min-width: 320px;
     text-align: center;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
     position: relative;
     transition: border-color 0.2s;
 }
@@ -2102,7 +2102,7 @@ html, body, #root {
     font-weight: bold;
     margin-bottom: 10px;
     color: var(--dark);
-    font-size: 18px;
+    font-size: 20px;
 }
 
 .employee-node-skills {
@@ -2732,8 +2732,8 @@ html, body, #root {
 /* Панель зума графа */
 .graph-zoom-panel {
     position: absolute;
-    top: 80px;
-    right: 20px;
+    bottom: 20px;
+    left: 60px;
     background: white;
     border: 1px solid #ddd;
     border-radius: 8px;
@@ -2741,4 +2741,65 @@ html, body, #root {
     padding: 10px 12px;
     width: 160px;
     z-index: 50;
+}
+
+/* ==================== Узел Проекта ==================== */
+.project-node {
+    background: linear-gradient(135deg, #7c3aed, #6d28d9);
+    color: white;
+    border: 2px solid #6d28d9;
+    border-radius: 14px;
+    padding: 20px 24px;
+    min-width: 280px;
+    text-align: center;
+    box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4);
+    position: relative;
+    transition: transform 0.2s;
+}
+
+.project-node:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(124, 58, 237, 0.5);
+}
+
+.project-node-icon {
+    font-size: 28px;
+    margin-bottom: 6px;
+}
+
+.project-node-label {
+    font-weight: 700;
+    font-size: 16px;
+    margin-bottom: 4px;
+}
+
+.project-node-counts {
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+/* ==================== Узел Навыка ==================== */
+.skill-node {
+    background: linear-gradient(135deg, #059669, #047857);
+    color: white;
+    border: 2px solid #047857;
+    border-radius: 20px;
+    padding: 10px 18px;
+    font-size: 15px;
+    font-weight: 600;
+    min-width: 150px;
+    text-align: center;
+    box-shadow: 0 4px 10px rgba(5, 150, 105, 0.4);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.skill-node:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 14px rgba(5, 150, 105, 0.5);
+}
+
+.skill-node i {
+    margin-right: 4px;
+    opacity: 0.9;
 }

@@ -20,7 +20,6 @@ import { getErrorMessage } from '../../utils/errorMessages';
 import TeamsManagement from '../TeamsManagement/TeamsManagement';
 import SkillsManagement from '../SkillsManagement/SkillsManagement'; 
 import TeamGraph from '../TeamGraph/TeamGraph'; 
-import SkillGraph from '../TeamGraph/SkillGraph';
 import Projects from '../Projects/Projects';
 
 // Импорты для графиков
@@ -407,11 +406,7 @@ const AppLayout = ({ user, onLogout }) => {
                     </li>
                     {/*Ссылка на Граф */}
                     <li className={`menu-item ${currentView === 'graph' ? 'active' : ''}`} onClick={() => setCurrentView('graph')}>
-                        <i className="fas fa-project-diagram"></i><span>Схема проекта</span>
-                    </li>
-                    {/* Пункт меню Граф навыков */}
-                    <li className={`menu-item ${currentView === 'skillGraph' ? 'active' : ''}`} onClick={() => setCurrentView('skillGraph')}>
-                        <i className="fas fa-project-diagram"></i><span>Граф навыков</span>
+                        <i className="fas fa-project-diagram"></i><span>Граф проекта</span>
                     </li>
                     <li className="menu-item" onClick={() => setEmployeesModalOpen(true)}>
                         <i className="fas fa-users"></i><span>Сотрудники</span>
@@ -438,8 +433,7 @@ const AppLayout = ({ user, onLogout }) => {
                              currentView === 'projects' ? 'Проекты' :
                              currentView === 'teams' ? 'Управление командами' : 
                              currentView === 'skills' ? 'Управление навыками' :
-                             currentView === 'graph' ? 'Схема проекта' : 
-                             currentView === 'skillGraph' ? 'Граф пересечения навыков' : ''}
+                             currentView === 'graph' ? 'Граф проекта' : ''}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -559,15 +553,6 @@ const AppLayout = ({ user, onLogout }) => {
                             <TeamGraph 
                                 currentUser={userInfo}
                                 activeProjectId={activeProjectId}
-                            />
-                        )}
-                        {/*Рендер SkillGraph */}
-                        {currentView === 'skillGraph' && (
-                            <SkillGraph 
-                                workers={workers}
-                                allSkills={allSkills}
-                                teams={teams}
-                                teamMembersMap={teamMembersMap}
                             />
                         )}
                     </div>
