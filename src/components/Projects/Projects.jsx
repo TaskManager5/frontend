@@ -12,7 +12,110 @@ import {
     getTeamsApi,
     addTeamToProjectApi,
     removeTeamFromProjectApi,
+    requestJoinProjectApi,
+    getJoinRequestsApi,
+    approveJoinRequestApi,
+    rejectJoinRequestApi,
 } from '../../api/api';
+
+// ==================== Модалка заявок на подключение ====================
+const JoinRequestsModal = ({ project, onClose, onRefresh }) => {
+    const [requests, setRequests] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    const load = async () => {
+        try {
+            setLoading(true);
+            const data = await getJoinRequestsApi(project.id);
+            setRequests(data);
+        } catch (err) {
+            setError(err.error || 'Ошибка загрузки');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { load(); }, [project.id]);
+
+    const handleApprove = async (reqId, name) => {
+        if (!window.confirm(`Одобрить подключение "${name}"?`)) return;
+        try {
+            await approveJoinRequestApi(project.id, reqId);
+            await load();
+            if (onRefresh) onRefresh();
+        } catch (err) {
+            alert(err.error || 'Ошибка одобрения');
+        }
+    };
+
+    const handleReject = async (reqId, name) => {
+        if (!window.confirm(`Отклонить заявку "${name}"?`)) return;
+        try {
+            await rejectJoinRequestApi(project.id, reqId);
+            await load();
+            if (onRefresh) onRefresh();
+        } catch (err) {
+            alert(err.error || 'Ошибка отклонения');
+        }
+    };
+
+    return (
+        <div className="modal" style={{ display: 'flex' }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+            <div className="modal-content" style={{ maxWidth: 640 }}>
+                <div className="modal-header">
+                    <div className="modal-title">Заявки на подключение: {project.name}</div>
+                    <div className="close-modal" onClick={onClose}>&times;</div>
+                </div>
+                <div className="modal-body">
+                    {error && <div style={{ color: 'red', marginBottom: 8 }}>{error}</div>}
+                    <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                        Ожидают рассмотрения ({requests.length}):
+                    </div>
+                    {loading ? (
+                        <div>Загрузка...</div>
+                    ) : requests.length === 0 ? (
+                        <div style={{ color: '#888', padding: 20, textAlign: 'center' }}>
+                            Нет активных заявок
+                        </div>
+                    ) : (
+                        <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+                            {requests.map(r => (
+                                <div key={r.id} style={{
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                    padding: 12, borderBottom: '1px solid #eee'
+                                }}>
+                                    <div>
+                                        <div style={{ fontWeight: 600 }}>{r.name}{!r.login ? ' (без учётки)' : ''}</div>
+                                        <div style={{ fontSize: 12, color: '#888' }}>
+                                            {r.position || '—'} · заявка от {new Date(r.created_at).toLocaleDateString('ru-RU')}
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 6 }}>
+                                        <button
+                                            className="login-btn"
+                                            style={{ padding: '6px 12px', fontSize: 12, width: 'auto' }}
+                                            onClick={() => handleApprove(r.id, r.name)}
+                                        >
+                                            Одобрить
+                                        </button>
+                                        <button
+                                            className="delete-btn"
+                                            style={{ padding: '6px 12px', fontSize: 12 }}
+                                            onClick={() => handleReject(r.id, r.name)}
+                                        >
+                                            Отклонить
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
 
 // ==================== Модалка создания/редактирования ====================
 const ProjectFormModal = ({ project, workers, onClose, onSave }) => {
@@ -387,6 +490,7 @@ export default function Projects({ currentUser, workers, activeProjectId, onSele
     const [editingProject, setEditingProject] = useState(null);
     const [teamsProject, setTeamsProject] = useState(null);
     const [membersProject, setMembersProject] = useState(null);
+    const [joinRequestsProject, setJoinRequestsProject] = useState(null);
 
     const load = async () => {
         try {
@@ -415,12 +519,15 @@ export default function Projects({ currentUser, workers, activeProjectId, onSele
         await load();
     };
 
-    const handleJoinProject = async (project) => {
+    const handleRequestJoin = async (project) => {
         try {
-            await joinProjectApi(project.id);
+            await requestJoinProjectApi(project.id);
+            alert('Заявка отправлена. Владелец/менеджер проекта её рассмотрит.');
             await load();
         } catch (err) {
-            alert(err.error === 'not_public' ? 'Проект не публичный' : 'Ошибка подключения');
+            if (err.error === 'not_public') alert('Проект не публичный');
+            else if (err.error === 'already_member') alert('Вы уже участник');
+            else alert('Ошибка подачи заявки');
         }
     };
 
@@ -484,13 +591,53 @@ export default function Projects({ currentUser, workers, activeProjectId, onSele
                                     <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => setTeamsProject(p)}>
                                         Команды
                                     </button>
-                                    {(!p.my_role && p.visibility === 'public') && (
+                                    {(!p.my_role && p.visibility === 'public' && !p.has_pending_request) && (
                                         <button 
                                             className="login-btn" 
                                             style={{ padding: '6px 12px', fontSize: 12, width: 'auto' }} 
-                                            onClick={() => handleJoinProject(p)}
+                                            onClick={() => handleRequestJoin(p)}
                                         >
-                                            Подключиться
+                                            Запросить подключение
+                                        </button>
+                                    )}
+                                    {(!p.my_role && p.visibility === 'public' && p.has_pending_request) && (
+                                        <span style={{ 
+                                            padding: '6px 12px', 
+                                            fontSize: 12, 
+                                            color: '#888',
+                                            background: '#f5f5f5',
+                                            borderRadius: 6
+                                        }}>
+                                            Заявка отправлена
+                                        </span>
+                                    )}
+                                    {(isAdmin || p.my_role === 'owner' || p.my_role === 'manager') && (
+                                        <button 
+                                            className="btn-secondary" 
+                                            style={{ 
+                                                padding: '6px 12px', 
+                                                fontSize: 12,
+                                                background: Number(p.pending_requests_count) > 0 ? '#fef3c7' : undefined,
+                                                borderColor: Number(p.pending_requests_count) > 0 ? '#f59e0b' : undefined,
+                                                fontWeight: Number(p.pending_requests_count) > 0 ? 600 : undefined,
+                                                color: Number(p.pending_requests_count) > 0 ? '#92400e' : undefined,
+                                            }} 
+                                            onClick={() => setJoinRequestsProject(p)}
+                                        >
+                                            Заявки
+                                            {Number(p.pending_requests_count) > 0 && (
+                                                <span style={{ 
+                                                    background: '#f59e0b',
+                                                    color: 'white',
+                                                    borderRadius: 10,
+                                                    padding: '1px 7px',
+                                                    marginLeft: 6,
+                                                    fontSize: 11,
+                                                    fontWeight: 700,
+                                                }}>
+                                                    {p.pending_requests_count}
+                                                </span>
+                                            )}
                                         </button>
                                     )}
                                     {(isAdmin || p.my_role === 'owner') && (
@@ -533,6 +680,14 @@ export default function Projects({ currentUser, workers, activeProjectId, onSele
                     project={teamsProject}
                     currentUser={currentUser}
                     onClose={() => setTeamsProject(null)}
+                />
+            )}
+
+            {joinRequestsProject && (
+                <JoinRequestsModal
+                    project={joinRequestsProject}
+                    onClose={() => setJoinRequestsProject(null)}
+                    onRefresh={load}
                 />
             )}
         </div>

@@ -237,10 +237,19 @@ export const getProjectsApi = () => apiFetch('/projects');
 
 export const getProjectApi = (projectId) => apiFetch(`/projects/${projectId}`);
 
-export const joinProjectApi = (projectId) => {
-  console.log('API: Подключение к проекту', projectId);
-  return apiFetch(`/projects/${projectId}/join`, { method: 'POST' });
+export const requestJoinProjectApi = (projectId) => {
+  console.log('API: Заявка на подключение к проекту', projectId);
+  return apiFetch(`/projects/${projectId}/request-join`, { method: 'POST' });
 };
+
+export const getJoinRequestsApi = (projectId) => 
+  apiFetch(`/projects/${projectId}/join-requests`);
+
+export const approveJoinRequestApi = (projectId, reqId) => 
+  apiFetch(`/projects/${projectId}/join-requests/${reqId}/approve`, { method: 'POST' });
+
+export const rejectJoinRequestApi = (projectId, reqId) => 
+  apiFetch(`/projects/${projectId}/join-requests/${reqId}/reject`, { method: 'POST' });
 
 export const createProjectApi = (projectData) => {
   console.log('API: Создание проекта', projectData);
