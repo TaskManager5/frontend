@@ -261,6 +261,20 @@ const AppLayout = ({ user, onLogout }) => {
     
     // Обработчики Задач 
     
+    const handleTakeTask = async (task) => {
+        const myWorker = workers.find(w => w.user_id && String(w.user_id) === String(userInfo.id));
+        if (!myWorker) {
+            alert('У вас нет привязанного профиля сотрудника');
+            return;
+        }
+        try {
+            await updateTaskApi(task.id, { assigneeId: myWorker.id });
+            await loadData();
+        } catch (err) {
+            alert('Не удалось взять задачу: ' + (err.error || ''));
+        }
+    };
+
     const handleSaveTask = async (taskData, taskId = null) => {
         try {
             if (taskId) {
@@ -510,6 +524,8 @@ const AppLayout = ({ user, onLogout }) => {
                                 onToggleTask={handleToggleTask}
                                 onDeleteTask={handleDeleteTask}
                                 onEditTask={handleEditTask}
+                                onTakeTask={handleTakeTask}
+                                workers={workers}
                                 onAddSubtask={handleAddSubtask}
                                 currentUser={userInfo}
                                 matrixView={matrixView} // Передаем режим просмотра
@@ -592,6 +608,7 @@ const AppLayout = ({ user, onLogout }) => {
             {isTaskModalOpen && (
                 <AddTaskModal 
                     key={editingTask?.id || newTaskParentId || 'new'}
+                    activeProjectId={activeProjectId}
                     task={editingTask}
                     onClose={() => {
                         setTaskModalOpen(false);
@@ -663,7 +680,7 @@ const AppLayout = ({ user, onLogout }) => {
 // Компоненты-помощники 
 
 // TaskMatrix теперь принимает matrixView
-const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, onEditTask, onAddSubtask, currentUser, matrixView, tasks }) => {
+const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, onEditTask, onAddSubtask, onTakeTask, currentUser, matrixView, tasks, workers = [] }) => {
     
     // Упрощаем canDeleteTask (проверяем, что created_by существует)
     const canDeleteTask = (task) => {
@@ -717,6 +734,21 @@ const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, onEditTask, onAddSu
                                 {/* Показываем сотрудника */}
                                 {task.assignee_name && (
                                     <span><i className="fas fa-user"></i> {task.assignee_name}</span>
+                                )}
+                                {/* Взять себе: если задачи без исполнителя */}
+                                {!task.assignee_name && !task.completed && onTakeTask && (
+                                    <button
+                                        className="take-task-btn"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (window.confirm(`Взять задачу "${task.title}" себе?`)) {
+                                                onTakeTask(task);
+                                            }
+                                        }}
+                                        title="Назначить задачу на себя"
+                                    >
+                                        <i className="fas fa-hand-paper"></i> Взять себе
+                                    </button>
                                 )}
                                 {/* Показываем команду */}
                                 {task.team_name && (
@@ -804,7 +836,7 @@ const TaskMatrix = ({ quadrants, onToggleTask, onDeleteTask, onEditTask, onAddSu
 };
 
 // AddTaskModal
-const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkills, task, tasks, workers, newTaskParentId }) => {
+const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkills, task, tasks, workers, newTaskParentId, activeProjectId }) => {
     // Логика связанных списков
     const [selectedTeamId, setSelectedTeamId] = useState('');
     const [teamSpecificMembers, setTeamSpecificMembers] = useState(null);
@@ -932,8 +964,9 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
             assigneeId: formData.get('taskAssignee') ? parseInt(formData.get('taskAssignee'), 10) : null, 
             teamId: teamId ? parseInt(teamId, 10) : null,
             parentTaskId: formData.get("taskParent") ? parseInt(formData.get("taskParent"), 10) : null, 
+            projectId: activeProjectId || null,
             priority: 'medium',
-            status: 'new' // Явно указываем статус
+            status: 'new'
         };
         
         await onSave(taskData, task?.id);
