@@ -825,6 +825,21 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
     const [teamSpecificMembers, setTeamSpecificMembers] = useState(null);
     const [loadingMembers, setLoadingMembers] = useState(false);
 
+    // Все команды — загружаем отдельно, чтобы новые команды тоже были в селекте
+    const [allTeams, setAllTeams] = useState([]);
+
+    useEffect(() => {
+        const loadAllTeams = async () => {
+            try {
+                const data = await getTeamsApi();  // без projectId — все команды
+                setAllTeams(data);
+            } catch (err) {
+                console.error('Не удалось загрузить все команды:', err);
+            }
+        };
+        loadAllTeams();
+    }, []);
+
     // Фильтры навыков
     const [selectedCategoryId, setSelectedCategoryId] = useState('');
     const [selectedSkillId, setSelectedSkillId] = useState('');
@@ -900,10 +915,7 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
             newErrors.taskComplexity = "Сложность должна быть от 1 до 5";
         }        
 
-        // Специфичная валидация для менеджера
-        if (currentUser.role === 'manager' && !teamId) {
-             newErrors.taskTeam = "Менеджер обязан выбрать команду";
-        }
+        // Команда необязательна: можно никому / команде / сотруднику / обоим
 
         // Проверка: если выбрана команда и сотрудник — сотрудник должен быть в команде
         const assigneeIdRaw = formData.get('taskAssignee');
@@ -996,29 +1008,6 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
                             {errors.taskDescription && <span className="validation-error-text">{errors.taskDescription}</span>}
                         </div>
                         
-                        {(currentUser.role === 'admin' || currentUser.role === 'manager') && (
-                            <div className="form-group">
-                                <label htmlFor="taskTeam">Команда</label>
-                                <select 
-                                    id="taskTeam" 
-                                    name="taskTeam"
-                                    value={selectedTeamId}
-                                    className={errors.taskTeam ? 'input-error' : ''}
-                                    onChange={(e) => {
-                                        handleTeamChange(e);
-                                        setErrors(prev => ({...prev, taskTeam: null}));
-                                    }}
-                                    required={currentUser.role === 'manager'} 
-                                >
-                                    <option value="">{currentUser.role === 'admin' ? 'Без команды' : 'Выберите команду'}</option>
-                                    {availableTeams.map(team => (
-                                        <option key={team.id} value={team.id}>{team.name}</option>
-                                    ))}
-                                </select>
-                                {errors.taskTeam && <span className="validation-error-text">{errors.taskTeam}</span>}
-                            </div>
-                        )}
-
                         <div className="form-group">
                             <label htmlFor="taskDeadline">Срок выполнения</label>
                             <input 
@@ -1063,6 +1052,28 @@ const AddTaskModal = ({ onClose, onSave, employees, currentUser, teams, allSkill
                             </div>
                         </div>
                         
+                        {(currentUser.role === 'admin' || currentUser.role === 'manager') && (
+                            <div className="form-group">
+                                <label htmlFor="taskTeam">Команда</label>
+                                <select 
+                                    id="taskTeam" 
+                                    name="taskTeam"
+                                    value={selectedTeamId}
+                                    className={errors.taskTeam ? 'input-error' : ''}
+                                    onChange={(e) => {
+                                        handleTeamChange(e);
+                                        setErrors(prev => ({...prev, taskTeam: null}));
+                                    }}
+                                >
+                                    <option value="">— Без команды —</option>
+                                    {allTeams.map(team => (
+                                        <option key={team.id} value={team.id}>{team.name}</option>
+                                    ))}
+                                </select>
+                                {errors.taskTeam && <span className="validation-error-text">{errors.taskTeam}</span>}
+                            </div>
+                        )}
+
                         <div className="form-group">
                             <label htmlFor="taskAssignee">Назначить сотруднику</label>
                             <select id="taskAssignee" name="taskAssignee" defaultValue={task?.assignee_worker_id || ''} disabled={loadingMembers}>
