@@ -64,6 +64,14 @@ export async function apiFetch(endpoint, options = {}) {
 
 // Функции API
 
+export const getKeycloakConfigApi = () => apiFetch('/auth/keycloak-config');
+
+export const keycloakCallbackApi = (code, redirectUri) =>
+  apiFetch('/auth/keycloak-callback', {
+    method: 'POST',
+    body: JSON.stringify({ code, redirectUri }),
+  });
+
 export async function loginApi(login, password) {
     const data = await apiFetch('/auth/login', {
         method: 'POST',
