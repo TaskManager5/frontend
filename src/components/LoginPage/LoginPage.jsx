@@ -28,6 +28,7 @@ const LoginPage = ({ onLoginSuccess }) => {
         .then(tokens => {
           Cookies.set('accessToken', tokens.access, { expires: 1/24 });
           Cookies.set('refreshToken', tokens.refresh, { expires: 14 });
+          localStorage.setItem('keycloak_login', '1');
           // Перезагружаем страницу — App увидит токен
           window.location.href = window.location.pathname;
         })
@@ -74,7 +75,7 @@ const LoginPage = ({ onLoginSuccess }) => {
     try {
       // Вызываем API, которое мы создали
       const userData = await loginApi(login, password);
-      // Если успешно, передаем данные пользователя в App.jsx
+      localStorage.removeItem('keycloak_login');
       onLoginSuccess(userData);
     } catch (err) {
       if (err.error === 'invalid_credentials') {

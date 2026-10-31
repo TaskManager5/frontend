@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Cookies from 'js-cookie';
 import LoginPage from './components/LoginPage/LoginPage';
 import AppLayout from './components/AppLayout/AppLayout';
-import { logoutApi } from './api/api';
+import { logoutApi, getKeycloakConfigApi } from './api/api';
 
 // Функция для декодирования JWT (из api.js)
 function parseJwt(token) {
@@ -55,9 +55,41 @@ const App = () => {
   };
 
   // Выход
-  const handleLogout = () => {
-    logoutApi(user?.jti); // Вызываем API
-    setUser(null); // Обновляем состояние
+  const handleLogout = async () => {
+    // Проверить, был ли вход через Keycloak
+    const wasKeycloak = localStorage.getItem('keycloak_login') === '1';
+
+    try {
+      if (wasKeycloak) {
+        const config = await getKeycloakConfigApi();
+        if (config?.url && config?.realm) {
+          Cookies.remove('accessToken');
+          Cookies.remove('refreshToken');
+          localStorage.removeItem('keycloak_login');
+          setUser(null);
+
+          const logoutUrl = `${config.url}/realms/${config.realm}/protocol/openid-connect/logout?` +
+            `post_logout_redirect_uri=${encodeURIComponent(window.location.origin)}&` +
+            `client_id=${encodeURIComponent(config.clientId)}`;
+
+          window.location.href = logoutUrl;
+          return;
+        }
+      }
+    } catch (err) {
+      console.error('Keycloak logout error:', err);
+    }
+
+    // Обычный logout (БД)
+    try {
+      await logoutApi(user?.jti);
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+    Cookies.remove('accessToken');
+    Cookies.remove('refreshToken');
+    localStorage.removeItem('keycloak_login');
+    setUser(null);
   };
 
   if (loading) {
