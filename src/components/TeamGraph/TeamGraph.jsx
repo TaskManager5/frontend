@@ -22,7 +22,8 @@ import {
   getSkillsApi,
   getProjectTeamsApi,
   addProjectMemberApi,
-  getProjectMembersApi
+  getProjectMembersApi,
+  addTeamToProjectApi
 } from '../../api/api';
 
 // Кастомный узел сотрудника 
@@ -63,6 +64,14 @@ const EmployeeNode = ({ data }) => {
 };
 
 // Проект — треугольник / ромб
+const TeamNode = ({ data }) => (
+  <div className="center-node">
+    <Handle type="target" position={Position.Top} style={{ background: '#2563eb' }} />
+    <div>{data.label}</div>
+    <Handle type="source" position={Position.Bottom} style={{ background: '#2563eb' }} />
+  </div>
+);
+
 const ProjectNode = ({ data }) => (
   <div className="project-node">
     <Handle type="target" position={Position.Top} style={{ background: '#7c3aed' }} />
@@ -90,6 +99,7 @@ const nodeTypes = {
   employee: EmployeeNode,
   project: ProjectNode,
   skill: SkillNode,
+  team: TeamNode,
 };
 
 //Основной компонент контента (внутри Provider)
@@ -239,7 +249,7 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
 
           newNodes.push({
             id: centerId,
-            type: 'input',
+            type: 'team',
             data: { label: team.name },
             position: existingCenter?.position || { x: colX + 200, y: 0 },
             className: 'center-node',
@@ -298,7 +308,18 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
           });
         });
 
-        return newNodes;
+        console.log('NODES ids:', newNodes.map(n => n.id));
+        // Удаляем дубликаты узлов (один и тот же сотрудник в нескольких командах)
+        const seenIds = new Set();
+        const uniqueNodes = [];
+        newNodes.forEach(n => {
+          if (!seenIds.has(n.id)) {
+            seenIds.add(n.id);
+            uniqueNodes.push(n);
+          }
+        });
+        console.log('UNIQUE NODES ids:', uniqueNodes.map(n => n.id));
+        return uniqueNodes;
       });
 
       setEdges((currentEdges) => {
@@ -307,6 +328,7 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
 
         // Проект → команда
         projectsWithTeams.forEach(({ project, teamIds }) => {
+          console.log('Project', project.id, 'teams:', teamIds);
           teamIds.forEach(teamId => {
             newEdges.push({
               id: `e-project-${project.id}-team-${teamId}`,
@@ -361,7 +383,16 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
           });
         });
 
-        return newEdges;
+        // Удаляем дубликаты edges
+        const seenEdges = new Set();
+        const uniqueEdges = [];
+        newEdges.forEach(e => {
+          if (!seenEdges.has(e.id)) {
+            seenEdges.add(e.id);
+            uniqueEdges.push(e);
+          }
+        });
+        return uniqueEdges;
       });
 
     } catch (err) {
@@ -519,6 +550,29 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
           }
       }
 
+      // === Команда → Проект (или Проект → Команда): привязать команду к проекту ===
+      if ((isSourceTeam && isTargetProject) || (isSourceProject && isTargetTeam)) {
+          const teamNode = isSourceTeam ? source : target;
+          const projNode = isSourceProject ? source : target;
+          const teamId = parseInt(teamNode.replace('team-', ''), 10);
+          const projectId = parseInt(projNode.replace('project-', ''), 10);
+
+          if (teamId && projectId) {
+              try {
+                  await addTeamToProjectApi(teamId, projectId);
+                  await loadAllTeamsGraph();
+              } catch (err) {
+                  console.error('Не удалось привязать команду к проекту:', err);
+                  setEdges((eds) => addEdge({ 
+                      ...params, 
+                      animated: true, 
+                      style: { stroke: '#64748b' } 
+                  }, eds));
+              }
+              return;
+          }
+      }
+
       // Остальное — визуальная связь
       setEdges((eds) => addEdge({ ...params, animated: true, style: { stroke: '#64748b' } }, eds));
   }, [setEdges, loadAllTeamsGraph]);
@@ -546,6 +600,12 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
   }, [nodes, hiddenNodeIds, hiddenTeamIds, hiddenWorkerIds, hiddenProjectIds, hiddenSkillIds, selectedNodeIds]);
 
   const visibleEdges = useMemo(() => {
+    console.log('Total edges:', edges.length);
+    console.log('Edges involving project-4 or team-5:', edges.filter(e => 
+      e.source.includes('4') || e.source.includes('5') || 
+      e.target.includes('4') || e.target.includes('5')
+    ));
+    console.log('hiddenNodeIds:', Array.from(hiddenNodeIds));
     return edges.filter(e => 
       !hiddenNodeIds.has(e.source) && !hiddenNodeIds.has(e.target)
     );
