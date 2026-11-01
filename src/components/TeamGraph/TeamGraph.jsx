@@ -20,7 +20,9 @@ import {
   removeTeamMemberApi,
   getProjectsApi,
   getSkillsApi,
-  getProjectTeamsApi
+  getProjectTeamsApi,
+  addProjectMemberApi,
+  getProjectMembersApi
 } from '../../api/api';
 
 // Кастомный узел сотрудника 
@@ -189,6 +191,19 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
         })
       )).filter(p => p.ok);
 
+      // Загружаем участников проектов (worker'ов)
+      const projectMembersMap = {};
+      await Promise.all(
+        projectsWithTeams.map(async ({ project }) => {
+          try {
+            const members = await getProjectMembersApi(project.id);
+            projectMembersMap[project.id] = members.map(m => String(m.id));
+          } catch (err) {
+            projectMembersMap[project.id] = [];
+          }
+        })
+      );
+
       setNodes((currentNodes) => {
         const newNodes = [];
         const newEdges = [];
@@ -199,6 +214,8 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
           const nodeId = `project-${project.id}`;
           const existingNode = currentNodes.find(n => n.id === nodeId);
           const projTeams = projectsWithTeams.find(pt => pt.project.id === project.id);
+          // Счётчик участников — из projectMembersMap (актуальные данные после drag-connect)
+          const membersCount = (projectMembersMap[project.id] || []).length;
           newNodes.push({
             id: nodeId,
             type: 'project',
@@ -209,7 +226,7 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
             data: {
               label: project.name,
               teamsCount: projTeams?.teamIds.length || 0,
-              membersCount: project.members_count || 0,
+              membersCount: membersCount,
             },
           });
         });
@@ -311,6 +328,21 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
               type: 'default',
               animated: true,
               style: { stroke: '#2563eb', strokeWidth: 2 },
+            });
+          });
+        });
+
+        // Проект → сотрудник (по project_members)
+        projectsWithTeams.forEach(({ project }) => {
+          const memberIds = projectMembersMap[project.id] || [];
+          memberIds.forEach(workerId => {
+            newEdges.push({
+              id: `e-project-${project.id}-emp-${workerId}`,
+              source: `project-${project.id}`,
+              target: `emp-${workerId}`,
+              type: 'default',
+              animated: false,
+              style: { stroke: '#a855f7', strokeWidth: 1.5, strokeDasharray: '3,3', opacity: 0.6 },
             });
           });
         });
@@ -431,15 +463,18 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
 
   // Создание связи (drag-line) — умная логика:
   // 1. Сотрудник → Команда: добавить в команду через API
-  // 2. Остальное — визуальная связь
+  // 2. Сотрудник → Проект: добавить в участники проекта
+  // 3. Остальное — визуальная связь
   const onConnect = useCallback(async (params) => {
       const { source, target } = params;
       const isSourceEmp = source.startsWith('emp-');
-      const isTargetTeam = target.startsWith('team-');
-      const isSourceTeam = source.startsWith('team-');
       const isTargetEmp = target.startsWith('emp-');
+      const isSourceTeam = source.startsWith('team-');
+      const isTargetTeam = target.startsWith('team-');
+      const isSourceProject = source.startsWith('project-');
+      const isTargetProject = target.startsWith('project-');
 
-      // === Сотрудник → Команда: добавить в команду ===
+      // === Сотрудник → Команда (или Команда → Сотрудник): добавить в команду ===
       if ((isSourceEmp && isTargetTeam) || (isSourceTeam && isTargetEmp)) {
           const empNode = isSourceEmp ? source : target;
           const teamNode = isSourceTeam ? source : target;
@@ -449,10 +484,31 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
           if (workerId && teamId) {
               try {
                   await addTeamMemberApi(teamId, workerId, 'member');
-                  // Обновляем граф
                   await loadAllTeamsGraph();
               } catch (err) {
-                  // Скорее всего, уже в команде — просто визуальная связь
+                  setEdges((eds) => addEdge({ 
+                      ...params, 
+                      animated: true, 
+                      style: { stroke: '#64748b' } 
+                  }, eds));
+              }
+              return;
+          }
+      }
+
+      // === Сотрудник → Проект (или Проект → Сотрудник): добавить в участники проекта ===
+      if ((isSourceEmp && isTargetProject) || (isSourceProject && isTargetEmp)) {
+          const empNode = isSourceEmp ? source : target;
+          const projNode = isSourceProject ? source : target;
+          const workerId = parseInt(empNode.replace('emp-', ''), 10);
+          const projectId = parseInt(projNode.replace('project-', ''), 10);
+
+          if (workerId && projectId) {
+              try {
+                  await addProjectMemberApi(projectId, workerId, 'member');
+                  await loadAllTeamsGraph();
+              } catch (err) {
+                  console.error('Не удалось добавить в проект:', err);
                   setEdges((eds) => addEdge({ 
                       ...params, 
                       animated: true, 
@@ -983,6 +1039,20 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
               <div className="graph-filter-group">
                 <div className="graph-filter-group-title">
                   Проекты ({allProjects.length})
+                  <button
+                    className="graph-filter-toggle-all"
+                    onClick={() => {
+                      const allHidden = allProjects.every(p => hiddenProjectIds.has(`project-${p.id}`));
+                      if (allHidden) {
+                        setHiddenProjectIds(new Set());
+                      } else {
+                        setHiddenProjectIds(new Set(allProjects.map(p => `project-${p.id}`)));
+                      }
+                    }}
+                    title="Показать/скрыть все"
+                  >
+                    {allProjects.every(p => hiddenProjectIds.has(`project-${p.id}`)) ? 'Вкл' : 'Выкл'}
+                  </button>
                 </div>
                 <div className="graph-filter-scroll">
                   {allProjects.map(p => (
