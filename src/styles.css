@@ -1278,6 +1278,10 @@ html, body, #root {
   
 .team-actions {
     display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    display: flex;
     justify-content: flex-end;
     margin-top: auto;
     padding-top: 15px;
