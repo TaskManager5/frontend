@@ -660,9 +660,11 @@ const AppLayout = ({ user, onLogout }) => {
                     details={fullUserDetails}
                     allSkills={allSkills} 
                     onUpdateUser={async (updatedData) => { 
+                        console.log('onUpdateUser called, payload:', updatedData);
                         // Обновляем пользователя на сервере
                         try {
                             await updateEmployeeApi(userInfo.id, updatedData);
+                            console.log('updateEmployeeApi success');
                             // Обновляем локальное состояние
                             await loadData(); 
                             // Закрываем модал
@@ -1316,8 +1318,13 @@ const AddEmployeeModal = ({ onClose, onSave, onRefresh, allSkills, currentUser }
     }, [selectedSkills, allSkills]);
     
     const handleAddSkill = () => {
+        console.log('handleAddSkill, currentSkillId:', currentSkillId);
         if (currentSkillId) {
-            setSelectedSkills(prev => new Set(prev).add(parseInt(currentSkillId, 10)));
+            setSelectedSkills(prev => {
+                const next = new Set(prev).add(parseInt(currentSkillId, 10));
+                console.log('selectedSkills:', Array.from(next));
+                return next;
+            });
             setCurrentCategoryId('');
             setCurrentSkillId('');
         }
@@ -1557,8 +1564,13 @@ const UserProfileModal = ({ onClose, user, details, allSkills, onUpdateUser }) =
     }, [selectedSkills, allSkills]);
 
     const handleAddSkill = () => {
+        console.log('handleAddSkill, currentSkillId:', currentSkillId);
         if (currentSkillId) {
-            setSelectedSkills(prev => new Set(prev).add(parseInt(currentSkillId, 10)));
+            setSelectedSkills(prev => {
+                const next = new Set(prev).add(parseInt(currentSkillId, 10));
+                console.log('selectedSkills:', Array.from(next));
+                return next;
+            });
             setCurrentCategoryId('');
             setCurrentSkillId('');
         }
