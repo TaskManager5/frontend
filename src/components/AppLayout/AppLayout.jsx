@@ -528,9 +528,8 @@ const AppLayout = ({ user, onLogout }) => {
                                 workers={workers}
                                 onAddSubtask={handleAddSubtask}
                                 currentUser={userInfo}
-                                matrixView={matrixView} // Передаем режим просмотра
+                                matrixView={matrixView}
                                 tasks={tasks}
-                                workers={workers}
                             />
                         )}
                         {currentView === 'analytics' && (

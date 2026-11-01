@@ -307,8 +307,6 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
             },
           });
         });
-
-        console.log('NODES ids:', newNodes.map(n => n.id));
         // Удаляем дубликаты узлов (один и тот же сотрудник в нескольких командах)
         const seenIds = new Set();
         const uniqueNodes = [];
@@ -318,7 +316,6 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
             uniqueNodes.push(n);
           }
         });
-        console.log('UNIQUE NODES ids:', uniqueNodes.map(n => n.id));
         return uniqueNodes;
       });
 
@@ -328,7 +325,6 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
 
         // Проект → команда
         projectsWithTeams.forEach(({ project, teamIds }) => {
-          console.log('Project', project.id, 'teams:', teamIds);
           teamIds.forEach(teamId => {
             newEdges.push({
               id: `e-project-${project.id}-team-${teamId}`,
@@ -600,12 +596,6 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
   }, [nodes, hiddenNodeIds, hiddenTeamIds, hiddenWorkerIds, hiddenProjectIds, hiddenSkillIds, selectedNodeIds]);
 
   const visibleEdges = useMemo(() => {
-    console.log('Total edges:', edges.length);
-    console.log('Edges involving project-4 or team-5:', edges.filter(e => 
-      e.source.includes('4') || e.source.includes('5') || 
-      e.target.includes('4') || e.target.includes('5')
-    ));
-    console.log('hiddenNodeIds:', Array.from(hiddenNodeIds));
     return edges.filter(e => 
       !hiddenNodeIds.has(e.source) && !hiddenNodeIds.has(e.target)
     );

@@ -161,6 +161,24 @@ export const createTeamApi = (teamData) => apiFetch('/teams', {
 export const getTeamMembersApi = (teamId) => apiFetch(`/teams/${teamId}/members`);
 
 // Основная функция добавления участника 
+export const updateTeamVisibilityApi = (teamId, visibility) => 
+  apiFetch(`/teams/${teamId}/visibility`, { 
+    method: 'PATCH', 
+    body: JSON.stringify({ visibility }) 
+  });
+
+export const requestJoinTeamApi = (teamId) => 
+  apiFetch(`/teams/${teamId}/request-join`, { method: 'POST' });
+
+export const getTeamJoinRequestsApi = (teamId) => 
+  apiFetch(`/teams/${teamId}/join-requests`);
+
+export const approveTeamJoinRequestApi = (teamId, reqId) => 
+  apiFetch(`/teams/${teamId}/join-requests/${reqId}/approve`, { method: 'POST' });
+
+export const rejectTeamJoinRequestApi = (teamId, reqId) => 
+  apiFetch(`/teams/${teamId}/join-requests/${reqId}/reject`, { method: 'POST' });
+
 export const addTeamMemberApi = (teamId, workerId, roleInTeam) => {
   console.log('API: Добавление участника', { teamId, workerId, roleInTeam });
   
