@@ -26,6 +26,7 @@ html, body, #root {
     overflow: hidden;
 }
 
+
 /* Стили для страницы входа */
 .login-container {
     display: flex;
@@ -1279,10 +1280,8 @@ html, body, #root {
 .team-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
-
-    display: flex;
     justify-content: flex-end;
+    gap: 8px;
     margin-top: auto;
     padding-top: 15px;
     border-top: 1px solid var(--border);
@@ -1556,15 +1555,7 @@ html, body, #root {
     color: var(--primary);
     font-weight: 500;
 }
-  
-.team-actions {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 15px;
-    padding-top: 15px;
-    border-top: 1px solid var(--border);
-}
-  
+    
 .btn-small {
     padding: 6px 10px;
     font-size: 12px;
