@@ -25,7 +25,8 @@ import {
   getProjectMembersApi,
   addTeamToProjectApi,
   removeProjectMemberApi,
-  removeTeamFromProjectApi
+  removeTeamFromProjectApi,
+  requestJoinProjectApi
 } from '../../api/api';
 
 // Кастомный узел сотрудника 
@@ -560,12 +561,26 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
                   await addProjectMemberApi(projectId, workerId, 'member');
                   await loadAllTeamsGraph();
               } catch (err) {
-                  console.error('Не удалось добавить в проект:', err);
-                  setEdges((eds) => addEdge({ 
-                      ...params, 
-                      animated: true, 
-                      style: { stroke: '#64748b' } 
-                  }, eds));
+                  if (err.error === 'forbidden') {
+                      if (window.confirm('У вас нет прав на добавление сотрудника в этот проект. Подать заявку на подключение к проекту?')) {
+                          try {
+                              await requestJoinProjectApi(projectId);
+                              alert('Заявка на подключение к проекту отправлена. Владелец проекта её рассмотрит.');
+                          } catch (e) {
+                              if (e.error === 'already_member') {
+                                  alert('Вы уже являетесь участником этого проекта.');
+                              } else {
+                                  alert('Ошибка подачи заявки: ' + (e.error || ''));
+                              }
+                          }
+                      }
+                  } else {
+                      setEdges((eds) => addEdge({ 
+                          ...params, 
+                          animated: true, 
+                          style: { stroke: '#64748b' } 
+                      }, eds));
+                  }
               }
               return;
           }
@@ -583,12 +598,15 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
                   await addTeamToProjectApi(teamId, projectId);
                   await loadAllTeamsGraph();
               } catch (err) {
-                  console.error('Не удалось привязать команду к проекту:', err);
-                  setEdges((eds) => addEdge({ 
-                      ...params, 
-                      animated: true, 
-                      style: { stroke: '#64748b' } 
-                  }, eds));
+                  if (err.error === 'forbidden') {
+                      alert('У вас нет прав на привязку команды к этому проекту. Привязать команду может только владелец проекта.');
+                  } else {
+                      setEdges((eds) => addEdge({ 
+                          ...params, 
+                          animated: true, 
+                          style: { stroke: '#64748b' } 
+                      }, eds));
+                  }
               }
               return;
           }
