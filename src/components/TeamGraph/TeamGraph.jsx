@@ -23,7 +23,9 @@ import {
   getProjectTeamsApi,
   addProjectMemberApi,
   getProjectMembersApi,
-  addTeamToProjectApi
+  addTeamToProjectApi,
+  removeProjectMemberApi,
+  removeTeamFromProjectApi
 } from '../../api/api';
 
 // Кастомный узел сотрудника 
@@ -287,6 +289,29 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
               animated: true,
               style: { stroke: '#2563eb', strokeWidth: 2 },
             });
+          });
+        });
+
+        // === Все сотрудники (даже не в командах) ===
+        const existingEmpIds = new Set(newNodes.filter(n => n.id.startsWith('emp-')).map(n => n.id));
+        allWorkers.forEach((worker, workerIndex) => {
+          const nodeId = `emp-${worker.id}`;
+          if (existingEmpIds.has(nodeId)) return;   // уже создан (в команде)
+          const existingNode = currentNodes.find(n => n.id === nodeId);
+          const skillNames = worker.skills?.map(s => s.skill_name) || [];
+          newNodes.push({
+            id: nodeId,
+            type: 'employee',
+            position: existingNode?.position || { 
+              x: 100 + (workerIndex % 6) * 220, 
+              y: 400 + Math.floor(workerIndex / 6) * 160,
+            },
+            data: {
+              label: worker.name,
+              userId: worker.id,
+              skills: skillNames,
+              onRemove: null,
+            },
           });
         });
 
@@ -573,6 +598,34 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
       setEdges((eds) => addEdge({ ...params, animated: true, style: { stroke: '#64748b' } }, eds));
   }, [setEdges, loadAllTeamsGraph]);
 
+  // Правый клик по связи — удалить
+  const onEdgeContextMenu = useCallback((event, edge) => {
+    event.preventDefault();
+    const isProjectEmp = edge.id.startsWith('e-project-') && edge.id.includes('-emp-');
+    const isProjectTeam = edge.id.startsWith('e-project-') && edge.id.includes('-team-');
+    
+    if (!isProjectEmp && !isProjectTeam) return;
+    if (!window.confirm('Удалить эту связь?')) return;
+    
+    if (isProjectEmp) {
+        const match = edge.id.match(/e-project-(\d+)-emp-(\d+)/);
+        if (match) {
+            const [, projectId, workerId] = match;
+            removeProjectMemberApi(Number(projectId), Number(workerId))
+                .then(() => loadAllTeamsGraph())
+                .catch((err) => alert('Ошибка удаления: ' + (err.error || '')));
+        }
+    } else if (isProjectTeam) {
+        const match = edge.id.match(/e-project-(\d+)-team-(\d+)/);
+        if (match) {
+            const [, projectId, teamId] = match;
+            removeTeamFromProjectApi(Number(teamId), Number(projectId))
+                .then(() => loadAllTeamsGraph())
+                .catch((err) => alert('Ошибка отвязки: ' + (err.error || '')));
+        }
+    }
+  }, [loadAllTeamsGraph]);
+
   // Фильтрация видимых узлов (без скрытых + с учётом фильтров + подсветка выделения)
   const visibleNodes = useMemo(() => {
     return nodes
@@ -843,11 +896,16 @@ const TeamGraphContent = ({ currentUser, activeProjectId }) => {
                     onNodeDoubleClick={onNodeDoubleClick}
                     onPaneClick={onPaneClick}
                     onNodeContextMenu={onNodeContextMenu}
+                    onEdgeContextMenu={onEdgeContextMenu}
                     nodeTypes={nodeTypes}
                     onDragOver={onDragOver}
                     onDrop={onDrop}
                     onInit={(instance) => {
                         setTimeout(() => instance.zoomTo(zoom), 100);
+                    }}
+                    onMove={(event, viewport) => {
+                        setZoom(viewport.zoom);
+                        localStorage.setItem('graph-zoom', String(viewport.zoom));
                     }}
                     zoomOnScroll={true}
                     zoomOnPinch={true}
