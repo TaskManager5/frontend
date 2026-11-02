@@ -326,13 +326,19 @@ const TeamsManagement = ({ currentUser, tasks, workers, activeProjectId }) => {
                   {/* Сменить visibility — manager/admin */}
                   {(currentUser.role === 'admin' || team.isMyTeam) && (
                     <button 
-                      className="btn btn-secondary btn-small"
+                      className="btn btn-small"
                       onClick={() => handleToggleVisibility(team)}
-                      style={{ padding: '6px 12px', fontSize: '12px' }}
-                      title="Сменить видимость команды"
+                      style={{ 
+                        padding: '6px 12px', 
+                        fontSize: '12px',
+                        background: team.visibility === 'public' ? '#dcfce7' : '#f3f4f6',
+                        color: team.visibility === 'public' ? '#166534' : '#374151',
+                        border: `1px solid ${team.visibility === 'public' ? '#16a34a' : '#d1d5db'}`,
+                      }}
+                      title={team.visibility === 'public' ? 'Сделать приватной' : 'Сделать публичной'}
                     >
-                      <i className={`fas fa-${team.visibility === 'public' ? 'lock' : 'globe'}`}></i>
-                      {team.visibility === 'public' ? 'Приватная' : 'Публичная'}
+                      <i className={`fas fa-${team.visibility === 'public' ? 'globe' : 'lock'}`}></i>
+                      {team.visibility === 'public' ? 'Публичная' : 'Приватная'}
                     </button>
                   )}
 
